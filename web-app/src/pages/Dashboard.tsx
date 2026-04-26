@@ -62,12 +62,15 @@ interface VitalSample {
 export default function Dashboard() {
   const [searchParams] = useSearchParams();
   const source = searchParams.get('source') === 'recorded' ? 'recorded' : 'live';
+  const devMode = searchParams.get('dev') === '1';
 
   const [state, setState] = useState<State>('regulated');
   const [latestBreath, setLatestBreath] = useState<number | undefined>(undefined);
   const [breathSamples, setBreathSamples] = useState<VitalSample[]>([]);
   const [active, setActive] = useState<ActiveSurface | null>(null);
   const [recentIds, setRecentIds] = useState<string[]>([]);
+  const [whatsAliveOpen, setWhatsAliveOpen] = useState(false);
+  const [whatsAliveText, setWhatsAliveText] = useState('');
   // Tick once per second so the sparkline's right edge tracks the wall clock
   // without having to call Date.now() during render (lint rule
   // react-hooks/purity forbids that).
@@ -220,6 +223,46 @@ export default function Dashboard() {
     workerRef.current?.postMessage({ kind: 'manual_trigger' });
   }, []);
 
+  /** ?dev=1 — synthesize a morning_check trigger so the demo can showcase
+   *  the MorningCheckCard surface without waiting 6 h of presence-gap. */
+  const handleForceMorningCheck = useCallback(async () => {
+    const rows = await morningCheckQuery(MORNING_WINDOW_MS);
+    const yesterdayCount = rows.filter((r) => r.to_state === 'activated').length;
+    const lastEventTs = rows.length > 0 ? rows[0].ts : Date.now() - 8 * 3600_000;
+    const todayBaseline = latestBreath ?? 12;
+    const synthetic: TriggerEvent = {
+      type: 'morning_check',
+      transitionId: globalThis.crypto.randomUUID(),
+      severity: 0.4,
+      ts: Date.now(),
+      morningPayload: {
+        yesterdayCount,
+        lastEventTs,
+        todayBaseline,
+        regulatedBaseline: 12,
+      },
+    };
+    surface('regulated', synthetic.transitionId, synthetic.morningPayload);
+  }, [morningCheckQuery, latestBreath, surface]);
+
+  /** Submit the user-typed "what's alive" sentence — IDB-only per Memory
+   *  DDD invariant 2. */
+  const handleSubmitWhatsAlive = useCallback(async () => {
+    const text = whatsAliveText.trim();
+    const transitionId = active?.intervention.transitionId;
+    if (!text || !transitionId) {
+      setWhatsAliveOpen(false);
+      return;
+    }
+    try {
+      await store.appendWhatsAlive(text, transitionId);
+    } catch {
+      /* IDB never fails the caller */
+    }
+    setWhatsAliveText('');
+    setWhatsAliveOpen(false);
+  }, [whatsAliveText, active?.intervention.transitionId, store]);
+
   const handleFeedback = useCallback(
     (signal: 'helped' | 'neutral' | 'unhelpful') => {
       const id = active?.intervention.transitionId;
@@ -267,6 +310,16 @@ export default function Dashboard() {
             >
               I need a moment
             </button>
+            {devMode ? (
+              <button
+                type="button"
+                onClick={handleForceMorningCheck}
+                className="text-xs uppercase tracking-widest text-amber-300 hover:text-amber-100 px-3 py-1.5 rounded-full border border-amber-700/60"
+                title="Dev: force a morning_check trigger so the MorningCheckCard renders without waiting 6h"
+              >
+                Force morning check
+              </button>
+            ) : null}
           </div>
         </header>
 
@@ -276,9 +329,7 @@ export default function Dashboard() {
               <MorningCheckCard
                 payload={active.morningPayload}
                 affirmation={active.affirmation}
-                onTalk={() => {
-                  /* Stub — Dashboard will swap in a free-form text box. */
-                }}
+                onTalk={() => setWhatsAliveOpen(true)}
               />
             ) : active ? (
               <AffirmationCard affirmation={active.affirmation} onFeedback={handleFeedback} />
@@ -300,6 +351,53 @@ export default function Dashboard() {
           Raw biometric signals never leave your device. Only state events
           sync, to enable the morning check across devices.
         </footer>
+
+        {whatsAliveOpen ? (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="What's alive"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
+            onClick={() => setWhatsAliveOpen(false)}
+          >
+            <div
+              className="max-w-lg w-full rounded-2xl border border-slate-700 bg-surface-800 p-6 space-y-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="text-sm uppercase tracking-widest text-accent-cyan">
+                What&rsquo;s alive
+              </h2>
+              <p className="text-xs text-slate-400">
+                Stays on this device. Never synced. Never embedded.
+              </p>
+              <textarea
+                autoFocus
+                rows={4}
+                value={whatsAliveText}
+                onChange={(e) => setWhatsAliveText(e.target.value)}
+                placeholder="A sentence about what's here right now…"
+                className="w-full rounded-lg bg-surface-900 border border-slate-700 p-3 text-sm text-slate-100 focus:outline-none focus:border-accent-cyan/60"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setWhatsAliveOpen(false)}
+                  className="text-xs uppercase tracking-widest text-slate-400 hover:text-slate-100 px-3 py-1.5 rounded-full border border-slate-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmitWhatsAlive}
+                  disabled={!whatsAliveText.trim()}
+                  className="text-xs uppercase tracking-widest text-accent-cyan hover:text-white px-3 py-1.5 rounded-full border border-accent-cyan/50 disabled:opacity-40"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </main>
   );

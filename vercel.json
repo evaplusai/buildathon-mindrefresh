@@ -1,0 +1,9 @@
+{
+  "buildCommand": "cd web-app && npm install && npm run build",
+  "outputDirectory": "web-app/dist",
+  "installCommand": "echo skipped",
+  "framework": null,
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
