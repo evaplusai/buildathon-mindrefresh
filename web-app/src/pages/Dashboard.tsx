@@ -26,6 +26,7 @@ import { useSearchParams } from 'react-router-dom';
 import { createWsClient } from '../services/wsClient';
 import { createSessionStore } from '../services/sessionStore';
 import { createMorningCheckQuery } from '../services/morningCheckQuery';
+import { createCloudSync } from '../services/cloudSync';
 import { pickAffirmation } from '../services/affirmationFilter';
 import affirmationsCorpus from '../data/affirmations.placeholder.json';
 import type { Affirmation, Intervention } from '../types/intervention';
@@ -84,10 +85,14 @@ export default function Dashboard() {
   // SessionStore — IDB-backed MemoryAPI. Stable across the component's
   // lifetime; the underlying IDB connection is opened lazily on first call.
   const store = useMemo(() => createSessionStore(), []);
+  // Sprint D: write-only Supabase mirror. Fail-soft: if env vars are missing
+  // every insert collapses to a no-op and `isEnabled()` returns false.
+  const cloudSync = useMemo(() => createCloudSync(), []);
   const morningCheckQuery = useMemo(
-    () => createMorningCheckQuery(store),
-    [store],
+    () => createMorningCheckQuery(store, cloudSync),
+    [store, cloudSync],
   );
+  const cloudEnabled = cloudSync.isEnabled();
 
   /** Re-read yesterday's transitions and push them into the worker. */
   const refreshSnapshot = useCallback(async () => {
@@ -130,8 +135,10 @@ export default function Dashboard() {
         .catch(() => {
           /* IDB never fails the caller (Memory DDD invariant) */
         });
+      // Fire-and-forget cloud mirror (Memory DDD invariant 6: IDB is truth).
+      void cloudSync.insertIntervention(intervention);
     },
-    [refreshRecent, store],
+    [refreshRecent, store, cloudSync],
   );
 
   // Spin up the worker + WebSocket on mount.
@@ -165,6 +172,8 @@ export default function Dashboard() {
           .appendTransition(t)
           .then(() => refreshSnapshot())
           .catch(() => {});
+        // Fire-and-forget cloud mirror (Memory DDD invariant 6).
+        void cloudSync.insertTransition(t);
         surface(t.to, t.id);
       } else if (msg.kind === 'trigger') {
         const ev = msg.event;
@@ -205,7 +214,7 @@ export default function Dashboard() {
     // captured via refs / closures whose latest values we read from inside
     // the message handler.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source]);
+  }, [source, cloudSync]);
 
   const handleManual = useCallback(() => {
     workerRef.current?.postMessage({ kind: 'manual_trigger' });
@@ -229,20 +238,36 @@ export default function Dashboard() {
   }, [active, state]);
 
   return (
-    <main className="min-h-screen bg-surface-900 text-slate-100">
-      <div className="max-w-5xl mx-auto px-6 py-10 space-y-8">
-        <header className="flex items-center justify-between">
+    <main className="min-h-screen bg-surface-900 text-slate-100 overflow-x-hidden">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-8">
+        <header className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-4">
             <h1 className="text-xl tracking-tight">MindRefreshStudio</h1>
             <StateBadge state={state} />
           </div>
-          <button
-            type="button"
-            onClick={handleManual}
-            className="text-xs uppercase tracking-widest text-slate-400 hover:text-slate-100 px-3 py-1.5 rounded-full border border-slate-700"
-          >
-            I need a moment
-          </button>
+          <div className="flex items-center gap-3">
+            <span
+              className={`text-[10px] uppercase tracking-widest px-2 py-1 rounded-full border ${
+                cloudEnabled
+                  ? 'border-emerald-700/60 text-emerald-300/90'
+                  : 'border-slate-700/60 text-slate-500'
+              }`}
+              title={
+                cloudEnabled
+                  ? 'State events sync to Supabase'
+                  : 'Local-only — set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable cloud sync'
+              }
+            >
+              {cloudEnabled ? 'Sync: ON' : 'Sync: OFF (local-only)'}
+            </span>
+            <button
+              type="button"
+              onClick={handleManual}
+              className="text-xs uppercase tracking-widest text-slate-400 hover:text-slate-100 px-3 py-1.5 rounded-full border border-slate-700"
+            >
+              I need a moment
+            </button>
+          </div>
         </header>
 
         <section className="grid gap-8 md:grid-cols-[1fr_320px] items-start">

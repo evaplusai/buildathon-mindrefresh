@@ -4,6 +4,7 @@ import { IDBFactory } from 'fake-indexeddb';
 
 import { createSessionStore, DEMO_USER_ID } from '../../src/services/sessionStore';
 import { createMorningCheckQuery } from '../../src/services/morningCheckQuery';
+import { createCloudSync } from '../../src/services/cloudSync';
 import type { StateTransition } from '../../src/types/state';
 import type { Intervention } from '../../src/types/intervention';
 
@@ -16,10 +17,35 @@ import type { Intervention } from '../../src/types/intervention';
  *   3. Every Supabase row carries user_id = 'demo-user-001'.
  *   7. recentAffirmationIds returns at most 5 ids, most-recent-first.
  *
- * Sprint C: the SessionStore is IDB-only — ZERO `fetch` calls. Sprint D
- * will add a separate cloudSync.ts; the spy will permit *.supabase.co
- * origins then.
+ * Sprint C: the SessionStore itself is IDB-only — it MUST make ZERO
+ * `fetch` calls (Memory invariant 1).
+ *
+ * Sprint D: a sibling `cloudSync.ts` writes to `*.supabase.co`. The
+ * structural-privacy invariant is now: any recorded `fetch` URL across
+ * the WHOLE Memory context must match `*.supabase.co` (or `mailto:`,
+ * which is reserved for the Trusted Witness button outside this
+ * context). Every other origin is forbidden mechanically.
  */
+
+const ALLOWED_URL_RE = /^(https?:\/\/[^/]*\.supabase\.co(?::\d+)?\/|mailto:)/i;
+
+function assertOnlyAllowedFetches(spy: ReturnType<typeof vi.fn>) {
+  for (const call of spy.mock.calls) {
+    const arg = call[0];
+    const url =
+      typeof arg === 'string'
+        ? arg
+        : arg instanceof URL
+          ? arg.toString()
+          : arg && typeof arg === 'object' && 'url' in arg
+            ? String((arg as { url: string }).url)
+            : String(arg);
+    expect(
+      ALLOWED_URL_RE.test(url),
+      `fetch URL ${url} must match *.supabase.co or mailto: (Memory DDD structural-privacy invariant)`,
+    ).toBe(true);
+  }
+}
 
 let fetchSpy: ReturnType<typeof vi.fn>;
 let dbCounter = 0;
@@ -41,6 +67,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // Sprint D structural-privacy invariant — applied to every test in this
+  // suite. ANY recorded fetch URL must match *.supabase.co or mailto:.
+  assertOnlyAllowedFetches(fetchSpy);
   vi.restoreAllMocks();
 });
 
@@ -198,13 +227,70 @@ describe('sessionStore — structural privacy invariants (Memory DDD)', () => {
     expect(rows.map((r) => r.id)).toEqual(['fresh']);
   });
 
-  it('createMorningCheckQuery delegates to the store (Sprint C: IDB-only seam for the Sprint D Supabase merge)', async () => {
+  it('createMorningCheckQuery without a cloudSync delegates to the store (IDB-only fallback)', async () => {
     const store = createSessionStore({ dbName: nextDbName() });
     const query = createMorningCheckQuery(store);
     const now = Date.now();
     await store.appendTransition(makeTransition({ id: 'q-row', ts: now - 10_000 }));
     const rows = await query(24 * 3600_000);
     expect(rows.map((r) => r.id)).toEqual(['q-row']);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('cloudSync — Sprint D structural-privacy contract', () => {
+  it('insertTransition issues an HTTPS POST to *.supabase.co (and only there)', async () => {
+    const cloud = createCloudSync({
+      url: 'https://abc123.supabase.co',
+      anonKey: 'public-anon-key',
+    });
+    expect(cloud.isEnabled()).toBe(true);
+
+    await cloud.insertTransition({
+      id: 'tx-cloud-1',
+      ts: Date.now(),
+      from: 'regulated',
+      to: 'activated',
+      reason: 'breath_rise',
+      breathBpm: 17,
+    });
+
+    // The supabase-js client batches the call through `fetch`; assert at
+    // least one call was made and that EVERY URL is supabase.co. The
+    // global afterEach also runs assertOnlyAllowedFetches.
+    expect(fetchSpy).toHaveBeenCalled();
+    const urls = fetchSpy.mock.calls.map((c) => {
+      const a = c[0];
+      return typeof a === 'string'
+        ? a
+        : a instanceof URL
+          ? a.toString()
+          : String((a as { url: string }).url);
+    });
+    for (const u of urls) {
+      expect(u).toMatch(/^https:\/\/[^/]*\.supabase\.co(?::\d+)?\//);
+    }
+  });
+
+  it('isEnabled() === false when env vars are missing — every insert is a no-op (no fetch)', async () => {
+    const cloud = createCloudSync({ url: '', anonKey: '' });
+    expect(cloud.isEnabled()).toBe(false);
+    await cloud.insertTransition({
+      id: 'tx-noop',
+      ts: Date.now(),
+      from: 'regulated',
+      to: 'activated',
+      reason: 'breath_rise',
+      breathBpm: 17,
+    });
+    await cloud.insertIntervention({
+      transitionId: 'tx-noop',
+      affirmationId: 'som-001',
+      breathPattern: 'natural',
+      ts: Date.now(),
+    });
+    const cloudRows = await cloud.morningCheckCloud(24 * 3600_000);
+    expect(cloudRows).toEqual([]);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
