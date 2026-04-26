@@ -60,6 +60,61 @@ describe('wsClient (ADR-008 port and path locked)', () => {
     client.stop();
   });
 
+  it('source=recorded fetches the JSONL fixture and emits parsed frames at their ts offsets', async () => {
+    const startTs = 1_700_000_000_000;
+    // Three frames at 0 s, 1 s, 2 s offsets — small enough for the test to wait through.
+    const lines = [
+      JSON.stringify({ ts: startTs, breathing_rate_bpm: 12, presence: true, motion_band_power: 0.2 }),
+      JSON.stringify({ ts: startTs + 1000, breathing_rate_bpm: 14, presence: true, motion_band_power: 0.3 }),
+      JSON.stringify({ ts: startTs + 2000, breathing_rate_bpm: 16, presence: true, motion_band_power: 0.4 }),
+    ].join('\n');
+
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValue(new Response(lines, { status: 200 }));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (globalThis as any).fetch = fetchSpy;
+
+    const client = createWsClient({ recordedUrl: '/fixtures/test.jsonl' });
+    const received: VitalsFrame[] = [];
+    client.subscribe((v) => received.push(v));
+    client.start({ source: 'recorded' });
+
+    // The first frame is scheduled at offset 0 — should arrive after a microtask + 0ms timeout.
+    await vi.waitFor(() => expect(received.length).toBeGreaterThanOrEqual(1), { timeout: 1000 });
+    expect(received[0].breathBpm).toBe(12);
+    expect(received[0].source).toBe('recorded');
+    expect(received[0].presence).toBe(true);
+    expect(fetchSpy).toHaveBeenCalledWith('/fixtures/test.jsonl');
+
+    // Wait for the third frame (~2s offset).
+    await vi.waitFor(() => expect(received.length).toBe(3), { timeout: 4000 });
+    expect(received.map((f) => f.breathBpm)).toEqual([12, 14, 16]);
+
+    client.stop();
+  });
+
+  it('source=recorded stop() cancels in-flight scheduled frames', async () => {
+    const startTs = 1_700_000_000_000;
+    const lines = [
+      JSON.stringify({ ts: startTs, breathing_rate_bpm: 12, presence: true, motion_band_power: 0 }),
+      JSON.stringify({ ts: startTs + 5000, breathing_rate_bpm: 14, presence: true, motion_band_power: 0 }),
+    ].join('\n');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (globalThis as any).fetch = vi.fn().mockResolvedValue(new Response(lines, { status: 200 }));
+
+    const client = createWsClient({ recordedUrl: '/fixtures/test.jsonl' });
+    const received: VitalsFrame[] = [];
+    client.subscribe((v) => received.push(v));
+    client.start({ source: 'recorded' });
+
+    await vi.waitFor(() => expect(received.length).toBe(1), { timeout: 1000 });
+    client.stop();
+    // Wait past the would-be second frame; it must NOT arrive.
+    await new Promise((r) => setTimeout(r, 200));
+    expect(received.length).toBe(1);
+  });
+
   it('subscribe returns an unsubscribe function that detaches the listener', async () => {
     const client = createWsClient({ url: URL });
     const cb = vi.fn();

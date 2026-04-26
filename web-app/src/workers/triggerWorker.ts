@@ -12,16 +12,19 @@
 // Vitest with no Worker globals.
 
 import type { VitalsFrame } from '../types/vitals';
-import type { StateTransition, TriggerEvent } from '../types/state';
+import type { State, StateTransition, TriggerEvent } from '../types/state';
+import type { MorningRow } from '../types/session';
 import { createTriggerCore, type TriggerCore } from './triggerCore';
 import type { StateRulesConfig } from './stateRules';
+import type { MemoryQuery } from './triggerDetectors';
 import rulesJson from '../data/stateRules.json';
 
 type Inbound =
   | { kind: 'vitals'; frame: VitalsFrame }
   | { kind: 'feedback'; transitionId: string; signal: 'helped' | 'neutral' | 'unhelpful' }
   | { kind: 'manual_trigger' }
-  | { kind: 'reset' };
+  | { kind: 'reset' }
+  | { kind: 'memory_snapshot'; snap: { rows: MorningRow[] } };
 
 type Outbound =
   | { kind: 'state_transition'; transition: StateTransition }
@@ -31,7 +34,33 @@ export type { Inbound, Outbound };
 
 const rules = rulesJson as StateRulesConfig;
 
-const core: TriggerCore = createTriggerCore({ rules });
+// Sync `MemoryQuery` impl backed by the latest snapshot pushed from the main
+// thread. Resolves the Sprint B reviewer's flag that the worker's
+// `MemoryQuery` is sync but IDB is async — the main thread does the async
+// work and posts a snapshot; the worker reads it synchronously.
+//
+// Snapshot rows are `MorningRow` (snake_case from the Memory DDD
+// anti-corruption layer); we adapt them back to the `getTransitionsSince`
+// camelCase shape the morning-check detector expects.
+let memorySnapshot: { rows: MorningRow[] } = { rows: [] };
+
+const memoryQuery: MemoryQuery = {
+  getLastPresenceTs: () => {
+    if (memorySnapshot.rows.length === 0) return undefined;
+    // Rows arrive desc by ts from morningCheckQuery; pick the newest.
+    return memorySnapshot.rows[0].ts;
+  },
+  getTransitionsSince: (sinceMs: number) =>
+    memorySnapshot.rows
+      .filter((r) => r.ts >= sinceMs)
+      .map((r) => ({
+        ts: r.ts,
+        from: r.from_state as State,
+        to: r.to_state as State,
+      })),
+};
+
+const core: TriggerCore = createTriggerCore({ rules, memory: memoryQuery });
 
 core.onTransition((transition) => {
   const msg: Outbound = { kind: 'state_transition', transition };
@@ -60,6 +89,9 @@ self.onmessage = (e: MessageEvent<Inbound>) => {
       return;
     case 'feedback':
       // Sprint C wires this to the Memory context. No-op in Sprint B.
+      return;
+    case 'memory_snapshot':
+      memorySnapshot = msg.snap;
       return;
   }
 };

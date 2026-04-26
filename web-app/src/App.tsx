@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import Landing from './pages/Landing';
 import NotFound from './pages/NotFound';
+import Dashboard from './pages/Dashboard';
 
 const queryClient = new QueryClient();
 
@@ -12,6 +13,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <Toaster theme="dark" />
