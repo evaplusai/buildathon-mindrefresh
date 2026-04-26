@@ -222,6 +222,8 @@ The worker owns the ring buffers, the 3-state rules, the 5 trigger detectors, an
 
 **No HNSW, no embedding model, no WebGPU rephrasing, no `@ruvector/*` dependencies in V1.** Bundle stays small; demo path is deterministic. Post-buildathon ADR will reintroduce semantic retrieval over user-typed sentences.
 
+> **Recency window:** the canonical exclusion window is the last 5 affirmations shown (matches Intervention DDD §Public Interface, Memory DDD `recentAffirmationIds()` cap, and plan task `S5-B1-T2`).
+
 The state-matched **breath pattern** for the BreathGuide animation (`src/data/breathPatterns.json`):
 
 | State | Pattern | Source |
@@ -382,7 +384,7 @@ Each item ends with a rubric tag.
 1. Working URL — `https://mindrefresh-studio.vercel.app/` (defaults to live; `?source=recorded` if no sensor reachable; `?dev=1` reveals a "force morning_check" button for live-demo iteration).
 2. 2-minute Loom + YouTube unlisted backup.
 3. ≤ 400-word write-up: problem, solution, architecture, novelty, RuView attribution, future work (HRV roadmap, 4-state polyvagal restoration, magic-link auth, HNSW, SONA personalisation).
-4. Public GitHub repo with React app, ADRs 005–010, RuView attribution, Supabase migration.
+4. Public GitHub repo with React app, ADRs 005–011 (with ADR-009 Accepted, ADR-011 Deferred status set), RuView attribution, Supabase migration.
 5. README quickstart with live URL, recorded-fixture URL, hardware setup photo, license (MIT).
 6. `src/data/affirmations.json` (user-provided).
 7. Sensor wiring photo.

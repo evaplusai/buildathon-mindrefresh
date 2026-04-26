@@ -58,6 +58,8 @@ recorded-fixture replay path (`?source=recorded`,
 `docs/02_research/05_canonical_build_plan.md` §10 Day 5, item 4) does not
 hit this URL at all — it reads JSONL through the same postMessage contract.
 
+> **Exception for dev / non-localhost daemon.** When `import.meta.env.DEV === true`, the WebSocket URL may be overridden by `VITE_SENSING_WS_URL` (e.g. `ws://192.168.1.42:8765/ws/sensing` if the sensing-server daemon runs on a different LAN machine). Production builds (Vercel) ALWAYS use the locked constant `ws://localhost:8765/ws/sensing`. The override is dev-only because Vercel-deployed builds run in the user's browser and `localhost` is correct there.
+
 ## Consequences
 
 ### Positive

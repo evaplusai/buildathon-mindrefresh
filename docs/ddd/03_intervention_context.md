@@ -73,6 +73,8 @@ export interface InterventionAPI {
 }
 ```
 
+> **Selection rule (load-bearing).** `BreathPattern` is selected by `state` ONLY (via `BreathPatternLibrary[state]`). `modality` is metadata used for affirmation diversity (the `recency exclusion` and `random pick` operate within a state-filtered set) and does NOT drive the BreathGuide. If state=`activated` and the picked affirmation is `modality: anchor`, the user still sees the cyclic-sigh `BreathPattern` because state wins.
+
 ## Domain Events
 
 | Event | Direction | Payload | Producer | Consumer(s) |
@@ -100,6 +102,7 @@ The `StateTransition` and `TriggerEvent` shapes match exactly the emitted shapes
 4. **Corpus immutability.** `AffirmationCorpus` is loaded once at boot and never mutated; hot-swap requires a full reload.
 5. **No render without a transitionId.** Every `Intervention` carries the `transitionId` from the upstream `StateTransition` or `TriggerEvent` — so feedback can later join the intervention row to the transition row in `Memory`.
 6. **`morning_check` exclusivity.** When the input event is a `morning_check` trigger, the rendered surface is the `MorningCheckCard`, never the plain `AffirmationCard`.
+7. **State drives BreathPattern; modality drives affirmation diversity.** No code path may select a BreathPattern from `modality`.
 
 ## Anti-corruption layer
 

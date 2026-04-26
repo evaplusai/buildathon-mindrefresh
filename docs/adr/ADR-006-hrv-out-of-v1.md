@@ -115,6 +115,8 @@ low motion.
   migration path if we want HRV-keyed affirmation analytics later. It is
   not used by V1 logic.
 
+  Cross-ref: ADR-007 §Decision documents the `hr_bpm` column as a forward-compatible storage field; V1 writes one display sample but never consumes it.
+
 ## Alternatives Considered
 
 - **Estimate RR intervals from peak detection on `motion_band_power`.**

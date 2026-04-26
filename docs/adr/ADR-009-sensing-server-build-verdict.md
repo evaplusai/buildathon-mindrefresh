@@ -1,27 +1,11 @@
 # ADR-009: Sensing-server build verdict on macOS
 
-**Status:** Proposed (pending Day-3 risk gate)
+**Status:** Accepted (Outcome A — PASS)
 **Date:** 2026-04-26
 **Build Day:** 3 of 8
 **Supersedes:** none
 **Superseded by:** none
-
-> ## Edit instructions (delete this block once finalised)
->
-> This ADR is a **template / stub**. It is to be filled in *today* (Build Day 3) immediately after the build gate runs:
->
-> ```bash
-> cd upstream/RuView/v2
-> cargo build -p wifi-densepose-sensing-server --no-default-features
-> ```
->
-> Once the build runs:
-> 1. **Pick one outcome block below** (Outcome A — PASS, or Outcome B — FAIL). Delete the other entirely.
-> 2. **Change the Status line** at the top to `Accepted`.
-> 3. **Fill in the timestamp** of when the build ran in the chosen outcome block.
-> 4. **If Outcome B (FAIL)**: paste the actual failing crate / dependency / first 30 lines of `cargo build` error output into the "Failure detail" subsection. Be specific (which crate, which symbol, which linker error) — vague failure notes are useless for the post-buildathon retry.
-> 5. **Update the "Test Hooks" section** to reflect the chosen path (live vs recorded-only).
-> 6. **Delete this Edit instructions block.**
+**Build log:** `docs/adr/build-gate-day3.log` (362 lines; final line `Finished dev profile [unoptimized + debuginfo] target(s) in 21.46s`).
 
 ## Context
 
@@ -33,58 +17,28 @@ The risk gate is binary. There is no halfway state: either the demo URL can serv
 
 ## Decision
 
-**[CHOOSE ONE OUTCOME BLOCK BELOW. DELETE THE OTHER.]**
-
----
-
-### Outcome A — PASS
-
-The command `cargo build -p wifi-densepose-sensing-server --no-default-features` from `upstream/RuView/v2` completed successfully on the developer's macOS machine on `2026-04-26 [HH:MM TZ — fill in]`. The architecture in ADR-005 is locked. We ship live as the default demo path:
+**Outcome A — PASS.** The command `cargo build -p wifi-densepose-sensing-server --no-default-features` from `upstream/RuView/v2` completed successfully on the developer's macOS machine on **2026-04-26**, finishing in **21.46 s** with one (non-blocking) compiler warning. The architecture in ADR-005 is locked. We ship live as the default demo path:
 
 - The Vercel-hosted demo URL defaults to live (`?source=live` implicit).
 - `?source=recorded` is retained as a fallback for judges who cannot or will not run the daemon locally, and as the recording path for the demo video.
-- A pre-built release binary is uploaded as a GitHub Release artifact on Day 6 (per §10 Day 6 item 4) so judges do not need a Rust toolchain.
+- A pre-built release binary is uploaded as a GitHub Release artifact on Day 6 (per `docs/plan/implementation-plan.md` task `S6-B3-T1`) so judges do not need a Rust toolchain.
 - `tests/sensing/wsClient.spec.ts` runs against the live server in CI manual mode and against a mock socket in default CI.
-
----
-
-### Outcome B — FAIL
-
-The command `cargo build -p wifi-densepose-sensing-server --no-default-features` from `upstream/RuView/v2` failed on the developer's macOS machine on `2026-04-26 [HH:MM TZ — fill in]`. We pivot to **recorded-fixture-only mode**:
-
-- The Vercel-hosted demo URL exclusively serves `?source=recorded`. The `?source=live` flag is removed from the router or hard-redirects to recorded.
-- No release binary is built or uploaded on Day 6; that line is struck from the Day-6 checklist.
-- The demo video is shot entirely off the `fixtures/recorded-csi-session.jsonl` replay (still produced via Heltec → sensing-server on the developer's *Linux* machine if available, or on a Docker Linux container running the same Rust daemon, since the daemon runs fine on Linux per RuView's own CI).
-- README explicitly states: "V1 ships in recorded-fixture mode on macOS. Live-sensing path is post-buildathon when the macOS build is fixed."
-- `tests/sensing/wsClient.spec.ts` runs against the recorded fixture replay only.
-
-#### Failure detail
-
-[Fill in: which crate failed (`tch`? `ort`? `cmake-rs`? `openblas-src`?), the first 30 lines of `cargo build` output including the linker / cc / clang error, the macOS / Xcode CLT version, and the Rust toolchain version. Be specific — the post-buildathon retry depends on this.]
-
----
 
 ## Consequences
 
-### Positive (PASS)
+### Positive
 - Live demo is the headline. The "WiFi sensor reading my breath in real time" moment is preserved.
 - Architecture per ADR-005 is shipped as designed; no doc rework.
+- Build is fast (21.46 s) so re-builds during Day-4 hardware bring-up are cheap.
 
-### Positive (FAIL)
-- Demo is still demo-able and entirely deterministic (recorded fixture). No "is your laptop running the daemon" failure mode for judges.
-- All sensor-side risk is removed from the Day 7 video shoot.
-
-### Negative (PASS)
+### Negative
 - Live demo carries non-zero risk on demo day: room WiFi conditions, Heltec power, ESP32 firmware drift.
 - Judges who try the URL without the daemon running see a connection error unless they hit `?source=recorded` manually.
-
-### Negative (FAIL)
-- Loses the "live" wow factor. The demo video has to lean harder on the morning_check moment to compensate.
-- Post-buildathon, the macOS build must be fixed before any real user can run the V1 product on a Mac.
+- One compiler warning was emitted; left unaddressed for V1 (out of scope; post-buildathon `cargo fix` pass).
 
 ### Neutral
-- `?source=recorded` is built either way (Day 5 §10 item 4); it is the demo fallback.
-- The 2-table Supabase schema (ADR-007), the 3-state classifier (ADR-010), and the Web Worker (§6) are unaffected by either outcome.
+- `?source=recorded` is built anyway as the deterministic demo fallback (`docs/plan/implementation-plan.md` `S5-B3-T1`).
+- The 2-table Supabase schema (ADR-007), the 3-state classifier (ADR-010), and the Web Worker (ADR-005 §6) are unaffected by this verdict.
 
 ## Alternatives Considered
 
@@ -99,7 +53,7 @@ Rejected: blows up the 4-day timeline. Out of scope for V1.
 
 ## Promotion / Rollback Criteria
 
-This ADR is `Proposed` until the build runs. Promotion to `Accepted` happens by editing this file as instructed in the "Edit instructions" block above, *today*. There is no rollback — once the verdict is recorded, it is recorded. A subsequent ADR will record any retry attempts post-buildathon.
+This ADR was Proposed at the start of Build Day 3 and Accepted the same day after `cargo build -p wifi-densepose-sensing-server --no-default-features` from `upstream/RuView/v2` finished in 21.46 s with exit code 0 (Outcome A). There is no rollback — the verdict is recorded. Any retry attempts post-buildathon will be tracked in a successor ADR rather than mutating this one.
 
 ## References
 
@@ -111,5 +65,5 @@ This ADR is `Proposed` until the build runs. Promotion to `Accepted` happens by 
 
 ## Test Hooks (London-school)
 
-- **If PASS:** `tests/sensing/wsClient.spec.ts` exercises the contract against (a) a mock `WebSocket` global in unit tests and (b) the live daemon at `ws://localhost:8765/ws/sensing` in a manually-gated integration test on the developer machine.
-- **If FAIL:** `tests/sensing/wsClient.spec.ts` runs only the mock-socket path; a separate `tests/sensing/recordedReplay.spec.ts` verifies the JSONL replayer emits `SensingUpdate` frames matching the live contract shape.
+- `tests/sensing/wsClient.spec.ts` exercises the contract against (a) a mock `WebSocket` global in unit tests (default CI) and (b) the live daemon at `ws://localhost:8765/ws/sensing` in a manually-gated integration test on the developer machine.
+- `tests/sensing/recordedReplay.spec.ts` (or extension of `wsClient.spec.ts` per `S5-B3-T1`) verifies the JSONL replayer emits `SensingUpdate` frames matching the live contract shape — keeps the recorded fallback path honest.

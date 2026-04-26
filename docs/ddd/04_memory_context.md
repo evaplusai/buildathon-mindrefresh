@@ -6,11 +6,11 @@
 
 ## Purpose
 
-The Memory context owns persistence and the privacy boundary. It runs the IndexedDB session store (full-fidelity, always-local, the source of truth for the SPA), the Supabase write client (anon-key, hardcoded `user_id = 'demo-user-001'`, only labels and id references — never raw vitals), the `morning_check` query that joins yesterday's rows from both stores, and — critically — the structural guarantee that turning on Always-Local Mode means *no* network call to a non-mailto URL is ever made. It does not classify state, sense vitals, or pick affirmations.
+The Memory context owns persistence and the privacy boundary. It runs the IndexedDB session store (full-fidelity, always-local, the source of truth for the SPA), the Supabase write client (anon-key, hardcoded `user_id = 'demo-user-001'`, only labels and id references — never raw vitals), the `morning_check` query that joins yesterday's rows from both stores, and — critically — the structural guarantee that V1 sends only state labels and affirmation IDs (no raw vitals series; no user-typed text) so the privacy promise holds without any runtime toggle. It does not classify state, sense vitals, or pick affirmations.
 
 ## Boundary
 
-Inside: IndexedDB schema and writes for sessions, transitions, interventions, feedback, and the rolling recency-of-5 list; the Supabase `createClient` call site and the only two `insert` paths for `state_transitions` and `interventions`; the `morning_check` query that returns the rows used to compute `MorningCheckPayload`; the Always-Local Mode toggle and the kill switch around the Supabase client. Outside: sensor I/O (`Sensing`), classification (`State`), affirmation choice/render (`Intervention`). The seams are: subscriptions to `StateTransition`, `TriggerEvent`, `InterventionRendered`, and `UserFeedback`; a CALLABLE `MorningCheckQuery` that the worker invokes; and the `recentAffirmationIds()` callable that the Intervention context invokes. Reference: `docs/05_architecture/01_system_architecture.md` §6 (privacy diagram) and `docs/02_research/05_canonical_build_plan.md` §3 (data classification) + §8 (Supabase 2-table schema).
+Inside: IndexedDB schema and writes for sessions, transitions, interventions, feedback, and the rolling recency-of-5 list; the Supabase `createClient` call site and the only two `insert` paths for `state_transitions` and `interventions`; the `morning_check` query that returns the rows used to compute `MorningCheckPayload`. Outside: sensor I/O (`Sensing`), classification (`State`), affirmation choice/render (`Intervention`). The seams are: subscriptions to `StateTransition`, `TriggerEvent`, `InterventionRendered`, and `UserFeedback`; a CALLABLE `MorningCheckQuery` that the worker invokes; and the `recentAffirmationIds()` callable that the Intervention context invokes. Reference: `docs/05_architecture/01_system_architecture.md` §6 (privacy diagram) and `docs/02_research/05_canonical_build_plan.md` §3 (data classification) + §8 (Supabase 2-table schema).
 
 ## Ubiquitous Language
 
@@ -21,7 +21,7 @@ Inside: IndexedDB schema and writes for sessions, transitions, interventions, fe
 | **state_transitions** | Supabase table: `(id, user_id, ts, from_state, to_state, trigger_reason, breath_bpm, hr_bpm)`. Source: build plan §8. |
 | **interventions** | Supabase table: `(id, user_id, transition_id, affirmation_id, breath_pattern, user_feedback, ts)`. |
 | **user_id** | Constant string `'demo-user-001'` in V1; replaced by `auth.uid()` post-buildathon (ADR-011 stretch). |
-| **Always-Local Mode** | A user-facing toggle. ON = no Supabase client is constructed; no `fetch` to a non-`mailto:` URL is permitted. Default OFF for the demo (so morning_check syncs work). |
+| **Structural privacy (V1)** | Privacy enforced by what is sent (state labels + affirmation IDs only), not by a runtime kill-switch. No Always-Local toggle in V1; the post-buildathon toggle is out of scope. |
 | **recency window** | The last 5 affirmation `id`s shown — stored in IndexedDB, exposed via `recentAffirmationIds()`. |
 | **MorningCheckQuery** | The function that returns the last 24 h of `state_transitions` for the current user, joining IndexedDB + Supabase rows by `id`. |
 | **anon key** | Supabase publishable key stored in `import.meta.env.VITE_SUPABASE_ANON_KEY`; not a secret per se but namespaced. |
@@ -47,7 +47,7 @@ export interface MorningRow {                        // raw row used by the quer
 
 // src/services/sessionStore.ts
 export interface MemoryAPI {
-  /** CALLABLE — append a state transition (writes IDB always; Supabase if not Always-Local). */
+  /** CALLABLE — append a state transition (writes IDB always; Supabase always in V1 per structural privacy in doc 05 §3). */
   appendTransition(t: StateTransition): Promise<void>;
   /** CALLABLE — append a rendered intervention. */
   appendIntervention(i: Intervention): Promise<void>;
@@ -61,8 +61,6 @@ export interface MemoryAPI {
   morningCheckQuery(sinceMs: number): Promise<MorningRow[]>;
   /** SUBSCRIBABLE — emitted after every successful append. */
   onPersisted(cb: (e: { kind: 'transition'|'intervention'|'feedback'|'whats_alive' }) => void): Unsubscribe;
-  /** CALLABLE — runtime status, for UI privacy badge. */
-  isAlwaysLocal(): boolean;
 }
 ```
 
@@ -82,7 +80,7 @@ Shapes match the State and Intervention emitted-events tables.
 ## Aggregates / Entities / Value Objects
 
 1. **`SessionStore` (aggregate root).** The IndexedDB connection and its object stores (`transitions`, `interventions`, `feedback`, `whats_alive`, `meta`). Invariant: every write is atomic per call; no partially-persisted record. Operations: `appendTransition`, `appendIntervention`, `appendFeedback`, `appendWhatsAlive`, `recentAffirmationIds`, `morningCheckLocal`.
-2. **`SupabaseSync` (aggregate).** The `createClient` instance and the two `insert` methods. Invariant: only ever instantiated when Always-Local Mode is OFF; only ever writes to `state_transitions` and `interventions`; every row carries `user_id = 'demo-user-001'`. Operations: `insertTransition`, `insertIntervention`, `morningCheckCloud`.
+2. **`SupabaseSync` (aggregate).** The `createClient` instance and the two `insert` methods. Invariant: only ever writes to `state_transitions` and `interventions`; every row carries `user_id = 'demo-user-001'`; never writes raw vitals series or user-typed text. Operations: `insertTransition`, `insertIntervention`, `morningCheckCloud`.
 3. **`MorningCheckQuery` (aggregate).** The composer that merges IDB and Supabase rows by `id` (Supabase wins on conflict, since it is the canonical cross-device source). Invariant: result is sorted by `ts` descending; duplicate `id`s collapsed.
 
 ## Invariants
@@ -90,8 +88,8 @@ Shapes match the State and Intervention emitted-events tables.
 1. **No raw vitals leave the device.** No code path writes `breathBpm`, `hrBpm`, or `motionBandPower` *series* (the ring-buffer contents) to Supabase. Single sample-at-transition values are permitted on `state_transitions` rows per §8 schema.
 2. **No user-typed text leaves the device in V1.** `appendWhatsAlive` only writes to IDB. There is no Supabase column for it in V1; adding one requires a new ADR.
 3. **`user_id` is constant.** Every Supabase row carries `user_id = 'demo-user-001'` in V1, until **ADR-011** promotes to `auth.uid()`.
-4. **Always-Local kill switch (V1: API stub).** Per **ADR-017**, `isAlwaysLocal()` exists in V1 as an API stub that always returns `false` — there is no toggle UI in V1. The invariant the API enforces is contractual and tested: when `isAlwaysLocal()` does return true (e.g. in tests, or post-buildathon when the toggle UI ships), (a) no Supabase client is instantiated, (b) `globalThis.fetch` is never called for any URL whose origin is not `mailto:`, and (c) `appendTransition` / `appendIntervention` complete successfully using IDB only. The toggle UI is post-buildathon (or part of the ADR-011 stretch).
-5. **Default-on cloud sync.** Always-Local is OFF by default for the demo so the `morning_check` story crosses device boundaries.
+4. **Privacy is structural, not toggle-driven (V1).** Per `docs/02_research/05_canonical_build_plan.md` §3, V1 enforces the privacy promise by what we choose to send (state labels + affirmation IDs only) — not by a runtime kill-switch. There is no `isAlwaysLocal()` API in V1; there is no Always-Local toggle UI in V1. The toggle is post-buildathon (potentially as part of a future ADR superseding ADR-011, or a fresh ADR after launch). The Memory context's only Supabase guards in V1 are: (a) never write raw vitals series; (b) never write user-typed text; (c) every row carries `user_id = 'demo-user-001'` per ADR-007.
+5. **Default-on cloud sync.** V1 always syncs state labels + affirmation IDs to Supabase so the `morning_check` story crosses device boundaries; structural privacy guarantees (no raw vitals series, no user-typed text) make this safe without a toggle.
 6. **Atomic appends.** A failed Supabase write does not roll back the IDB write — IDB is the source of truth; cloud is an eventually-consistent mirror. Failed cloud writes are logged but never re-thrown to callers.
 7. **Recency cap = 5.** `recentAffirmationIds()` returns at most 5 ids, ordered most-recent-first.
 
@@ -110,7 +108,7 @@ Two translators sit at the boundary. (1) `src/services/supabaseClient.ts` transl
 
 ## Tests
 
-- `tests/memory/sessionStore.spec.ts` — uses `fake-indexeddb` and a `globalThis.fetch` spy. Two scenarios: (a) Always-Local Mode ON → after `appendTransition`, `appendIntervention`, `appendWhatsAlive`, the spy records **zero** non-`mailto:` calls; (b) Always-Local Mode OFF → the spy records calls only to hosts ending in `*.supabase.co` (and `mailto:` for the Trusted Witness button). Mechanically enforces invariants 1, 2, 4.
+- `tests/memory/sessionStore.spec.ts` — uses `fake-indexeddb` and a `globalThis.fetch` spy. **Asserts the structural privacy invariants:** the `globalThis.fetch` spy must record only `*.supabase.co` and `mailto:` calls (never any other origin); `appendTransition` must NOT send raw vitals series; `appendWhatsAlive` must NOT call `fetch` at all (IDB-only).
 
 Listed in build plan §13 (extension of the test plan; the privacy assertion is the strongest-typed invariant in V1).
 
@@ -131,5 +129,4 @@ Listed in build plan §13 (extension of the test plan; the privacy assertion is 
 - `docs/adr/ADR-005-two-link-architecture.md`
 - `docs/adr/ADR-007-supabase-v1-simplified.md` (Day 3)
 - `docs/adr/ADR-011-stretch-auth-and-rls.md` (Day 6, conditional)
-- `docs/adr/ADR-017-always-local-mode-v1-stub.md`
 - [Supabase RLS docs](https://supabase.com/docs/guides/database/postgres/row-level-security) — for the post-buildathon promotion

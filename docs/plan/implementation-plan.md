@@ -6,10 +6,10 @@
 - **Submission deadline:** Fri May 1 @ 3:00 PM ET (hard). Personal target: 12:00 PM ET (3-hour buffer).
 - **Working build days remaining:** 4 (Days 3–6). Day 7 = demo + write-up. Day 8 morning = buffer + submit.
 - **Source of truth:** `docs/02_research/05_canonical_build_plan.md` (v3, post-V1-cuts). This implementation plan operationalises that doc; if the two ever disagree, doc 05 wins on *what*, this doc wins on *when*.
-- **ADRs in `docs/adr/`:** ADR-005 (two-link architecture), ADR-006 (HRV out of V1), ADR-007 (Supabase V1 simplified), ADR-008 (port and path locked), ADR-009 (build verdict — Proposed, pending Day-3 gate), ADR-010 (3-state classifier), ADR-011 (auth + RLS — Proposed, gated to Day-6 stretch criteria), ADR-017 (Always-Local Mode V1 stub).
+- **ADRs in `docs/adr/`:** ADR-005 (two-link architecture), ADR-006 (HRV out of V1), ADR-007 (Supabase V1 simplified), ADR-008 (port and path locked), ADR-009 (build verdict — **Accepted, Outcome A — PASS**), ADR-010 (3-state classifier), ADR-011 (auth + RLS — **Deferred — post-buildathon**).
 - **DDD bounded contexts:** `docs/ddd/01_sensing_context.md`, `02_state_context.md`, `03_intervention_context.md`, `04_memory_context.md` — all written.
 - **Builder:** solo.
-- **Repo state at plan time:** scaffold not yet stood up; no `web-app/` directory; sensing-server unbuilt; ADRs 005–011 + 017 already in `docs/adr/`.
+- **Repo state at plan time:** scaffold not yet stood up; no `web-app/` directory; sensing-server build verified; ADRs 005–011 in `docs/adr/`.
 
 ## 2. Methodology — Ruv SPARC + DDD + TDD-London
 
@@ -173,11 +173,11 @@ All 5 tests writable today because each mocks at the contract boundary. None req
 
 | ID | Task | Time | Pred | Context | ADR | Test |
 |---|---|---|---|---|---|---|
-| `S5-B2-T1` | Write `src/services/sessionStore.ts` (IndexedDB wrapper per Memory DDD): `appendTransition()`, `appendIntervention()`, `appendWhatsAlive()`, `getTransitionsSince(ts)`, `getLastPresence()`, `recentAffirmationIds()`, `isAlwaysLocal()` API stub returning `false` (ADR-017). | 60m | `S3-B2-T3` | Memory | implements ADR-005, ADR-017 | covered by `S5-B2-T5` |
+| `S5-B2-T1` | Write `src/services/sessionStore.ts` (IndexedDB wrapper per Memory DDD): `appendTransition()`, `appendIntervention()`, `appendWhatsAlive()`, `getTransitionsSince(ts)`, `getLastPresence()`, `recentAffirmationIds()`. | 60m | `S3-B2-T3` | Memory | implements ADR-005 | covered by `S5-B2-T5` |
 | `S5-B2-T2` | Wire `sessionStore.appendTransition()` to fire on every `state_transition` from worker. | 20m | `S5-B2-T1`, `S4-B2-T4` | Memory | ADR-005 | n/a — wiring |
 | `S5-B2-T3` | Write `src/services/morningCheckQuery.ts` (Memory DDD anti-corruption layer) — merges IDB rows + Supabase rows by client-minted UUID into a unified `MorningRow[]` for the State worker; canonical site that translates Supabase snake_case to internal value objects. | 45m | `S5-B2-T1`, `S6-B1-T3` (deferred wire — IDB-only fallback works without Supabase) | Memory | ADR-005, ADR-007 | covered by `S3-B4-T5` mock layer |
 | `S5-B2-T4` | Build `src/components/dashboard/MorningCheckCard.tsx` — 3 panels (yesterday count, today's baseline vs. regulated, one matched affirmation); subscribes to `morning_check` trigger; reads payload directly (Intervention DDD: no re-query). | 60m | `S4-B3-T5`, `S5-B1-T2`, `S5-B2-T3` | Intervention + Memory | ADR-005 | n/a — UI |
-| `S5-B2-T5` | Write `tests/memory/sessionStore.spec.ts` (Memory DDD §Tests, the privacy kill-switch enforcement) — `globalThis.fetch` spy must record zero calls when `isAlwaysLocal()` returns true; only `*.supabase.co` and `mailto:` calls otherwise; assert no raw vitals or whats_alive ever sent to Supabase. | 30m | `S5-B2-T1`, `S5-B2-T2` | Memory | ADR-007, ADR-017 | this file (the 6th spec) |
+| `S5-B2-T5` | Write `tests/memory/sessionStore.spec.ts` (Memory DDD §Tests) — structural privacy invariants — only `*.supabase.co` + `mailto:` calls; no raw vitals series; no user-typed text to Supabase. | 30m | `S5-B2-T1`, `S5-B2-T2` | Memory | ADR-007 | this file (the 6th spec) |
 | `S5-B2-T6` | Add CTA "I'd like to talk about it" — opens free-form text box; write to IndexedDB only (no Supabase per ADR-007). | 25m | `S5-B2-T4` | Memory | ADR-007 | n/a — wiring |
 
 ### Block 3 — 14:00–16:00 (recorded fixture playback + dashboard polish)
@@ -238,7 +238,7 @@ All 5 tests writable today because each mocks at the contract boundary. None req
 | ID | Task | Time | Pred | Context | ADR | Test |
 |---|---|---|---|---|---|---|
 | `S6-B3-T1` | `cargo build --release -p wifi-densepose-sensing-server --no-default-features` from `upstream/RuView/v2/`; tag `v0.1.0-mindrefresh`; create GitHub Release; upload `wifi-densepose-sensing-server-macos-arm64` artefact. | 45m | `S3-B1-T1` Outcome A | Sensing | n/a — wiring | n/a |
-| `S6-B3-T2` | Write `README.md` quickstart: live URL, `?source=recorded` URL, sensor wiring photo, release binary URL, build command, license (MIT), RuView attribution paragraph, privacy promise. | 60m | `S6-B3-T1`, `S6-B2-T4` | n/a | n/a — wiring | n/a |
+| `S6-B3-T2` | Write `README.md` quickstart: live URL, `?source=recorded` URL, sensor wiring photo, release binary URL, build command, license (MIT), RuView attribution paragraph, privacy promise; explicit "Live mode requires macOS arm64 with the released binary; all other platforms use `?source=recorded`" sub-section under §Limitations. | 60m | `S6-B3-T1`, `S6-B2-T4` | n/a | n/a — wiring | n/a |
 | `S6-B3-T3` | Add `LICENSE` (MIT). | 5m | — | n/a | n/a — wiring | n/a |
 | `S6-B3-T4` | Take sensor wiring photo; add to `docs/assets/sensor-wiring.jpg`; reference in README. | 20m | — | n/a | n/a — wiring | n/a |
 | `S6-B3-T5` | Run `npx @claude-flow/cli@latest security scan`; address any HIGH findings; document MEDIUM findings as known. | 25m | `S6-B1-T4`, `S6-B3-T2` | n/a | n/a — refinement | n/a |
@@ -248,7 +248,7 @@ All 5 tests writable today because each mocks at the contract boundary. None req
 | ID | Task | Time | Pred | Context | ADR | Test |
 |---|---|---|---|---|---|---|
 | `S6-B4-T1` | Decision gate at 16:00: if all blocks above are green AND ≥ 2 hours of slack remain, proceed to `S6-B4-T2`; else skip to `S6-B4-T5`. | 5m | `S6-B3-T5` | n/a | n/a — refinement | n/a |
-| `S6-B4-T2` | (Stretch) Promote `docs/adr/ADR-011-stretch-auth-and-rls.md` from Proposed to Accepted; update Status header; verify the 4 promotion criteria (cross-browser pass; release binary built; ≥2 h slack; morning_check live verified). | 10m | `S6-B4-T1`=proceed | Memory | ADR-011 | n/a |
+| `S6-B4-T2` | (Stretch) ADR-011 is now Deferred — do NOT mutate it. Instead, write a new `docs/adr/ADR-018-auth-rls-revival.md` superseding ADR-011 only if all 4 criteria still pass (cross-browser pass; release binary built; ≥2 h slack; morning_check live verified). Otherwise skip to `S6-B4-T5`. | 15m | `S6-B4-T1`=proceed | Memory | ADR-018 (new) | n/a |
 | `S6-B4-T3` | (Stretch) Add Supabase magic-link auth UI; gate writes behind `auth.uid()`; write RLS policies. | 90m | `S6-B4-T2` | Memory | ADR-011 | n/a |
 | `S6-B4-T4` | (Stretch) Re-test cross-browser; re-take Day 5 screenshots if auth UI changes the demo flow; re-pre-seed Supabase rows for `auth.uid()`. | 30m | `S6-B4-T3` | Memory | ADR-011 | n/a |
 | `S6-B4-T5` | If stretch skipped: append "Status: Deferred — V1 ships with hardcoded `user_id`; see ADR-007" to ADR-011 stub. Document the choice in README. | 10m | `S6-B4-T1`=skip | Memory | ADR-011 | n/a |
@@ -324,7 +324,7 @@ Log into a single rolling note `docs/plan/log.md` as one-line entries `<HH:MM> S
 | 3 | `tests/state/stateRules.spec.ts` | `regulated→activated` after sustained 60 s breath > 14 BPM rising; `activated→recovering` after 30 s descent > 0.5 BPM/min; ≥ 5 s debounce. | `Date.now()` (fake timers); ring-buffer feature stub. | Day 3 (`S3-B4-T4`) |
 | 4 | `tests/triggers/morningCheck.spec.ts` | `morning_check` fires when last presence > 6 h ago AND new presence; payload contains `yesterdayCount`, `lastEventTs`, `todayBaseline`, `regulatedBaseline`. | `fake-indexeddb`; fake timers; canned Supabase rows. | Day 3 (`S3-B4-T5`) |
 | 5 | `tests/intervention/affirmationFilter.spec.ts` | Given `state='activated'`, returns one activated affirmation; excludes last 5 shown. | Seeded `Math.random`; `affirmations.json` fixture. | Day 3 (`S3-B4-T6`) |
-| 6 | `tests/memory/sessionStore.spec.ts` | Privacy kill-switch: `globalThis.fetch` spy records zero calls when `isAlwaysLocal()` returns true; only `*.supabase.co` and `mailto:` calls otherwise; no raw vitals series ever sent. | `fake-indexeddb`; `globalThis.fetch` spy; mocked Supabase client. | Day 5 (`S5-B2-T5`) |
+| 6 | `tests/memory/sessionStore.spec.ts` | Structural privacy invariants: `globalThis.fetch` spy records only `*.supabase.co` and `mailto:` calls (never any other origin); `appendTransition` does NOT send raw vitals series; `appendWhatsAlive` does NOT call `fetch` (IDB-only). | `fake-indexeddb`; `globalThis.fetch` spy; mocked Supabase client. | Day 5 (`S5-B2-T5`) |
 
 Tests 1, 4, 5 go green Day 5 once their implementations land. Tests 2, 3 go green Day 4 (`S4-B2-T1`, `S4-B2-T3`). Test 6 goes green Day 5 alongside `S5-B2-T1`.
 
@@ -345,7 +345,7 @@ All 14 items must be true at submission:
 11. ADR-007 + ADR-008 status `Accepted` in `docs/adr/`.
 12. ADR-009 closed with Outcome A or Outcome B explicit.
 13. ADR-011 status `Promoted` (auth + RLS shipped) **or** `Deferred` (V1 keeps hardcoded `user_id`) — never absent.
-14. `pnpm test` runs 6 spec files, all green (5 Day-3 specs + `sessionStore.spec.ts` Day-5 privacy kill-switch).
+14. `pnpm test` runs 6 spec files, all green (5 Day-3 specs + `sessionStore.spec.ts` Day-5 structural-privacy assertions).
 
 ## 15. Things That Are Explicitly NOT This Plan's Concern
 

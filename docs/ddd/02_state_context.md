@@ -137,6 +137,7 @@ Both files are listed in build plan §13.
 - SONA-personalised threshold adaptation per user — cut by **ADR-007**; thresholds remain literal.
 - WebGPU-based classification — out per **ADR-007**.
 - Any direct DB write — `State` only emits events; persistence is `Memory`'s job.
+- **`late_push` and `cumulative_load` triggers** from earlier drafts are post-buildathon. V1 ships exactly 5 triggers (`acute_spike`, `slow_drift`, `recovery`, `manual`, `morning_check`) per ADR-005 / doc 05 §5. Do not reintroduce based on stale references to docs 01 / 03 / 04.
 
 ## References
 

@@ -1,10 +1,13 @@
 # ADR-011: Day-6 stretch — auth + RLS upgrade
 
-**Status:** Proposed
+**Status:** Deferred — post-buildathon
+**Deferred on:** 2026-04-26 (Build Day 3)
 **Date:** 2026-04-26
 **Build Day:** 3 of 8
 **Supersedes:** none
 **Superseded by:** none
+
+> **Deferral note.** Pre-emptively deferred on Day 3 because the auth + RLS work is estimated 4–6 hours and the original promotion criterion of "≥ 2 hours of focus time remaining at Day 6 EOD" was insufficient. V1 ships with hardcoded `user_id = 'demo-user-001'` per ADR-007. Promotion to Accepted requires a new ADR that supersedes this one.
 
 ## Context
 
@@ -60,6 +63,8 @@ Rejected. Buildathon-grade auth code is a security risk. The only safe path insi
 Rejected as security theatre. The `anon` role can fabricate any header. Half-RLS is worse than no RLS — it suggests safety where there is none.
 
 ## Promotion / Rollback Criteria
+
+(Original criteria, now obsolete by deferral; preserved for V2 reference.)
 
 This ADR is promoted from `Proposed` to `Accepted` if **and only if** the following four conditions are *all* true at end of Day 6 (Wed Apr 29, end of working day, before midnight feature freeze):
 

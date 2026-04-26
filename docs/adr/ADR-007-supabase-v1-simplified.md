@@ -50,6 +50,9 @@ V1 ships exactly the following Supabase footprint:
   insert that omits it still works.
 - **No raw_vitals table.** No `whats_alive` table. No embedding tables. Adding
   any new table in V1 requires a new ADR.
+- No `whats_alive` table in V1. User-typed text persists only in IndexedDB. Adding such a table requires a new ADR explicitly reversing this.
+
+> Note on `hr_bpm` column: kept as a one-sample-at-transition value for V2 migration path and display purposes only. NEVER read by the V1 classifier (which is breath-only per ADR-006 / ADR-010). NEVER stored as a series. This is documented dead code that becomes live in V2 when 60-GHz radar pairs and HRV is computable. (`-- hr_bpm: V2 migration field; V1 stores one display sample only; see ADR-006`)
 
 We do **not** ship: magic-link auth, RLS policies, an authenticated client
 session, password recovery, account deletion, multi-user write isolation, or
