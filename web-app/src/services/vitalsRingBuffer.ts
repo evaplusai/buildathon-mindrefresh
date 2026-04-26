@@ -56,6 +56,30 @@ export class VitalsRingBuffer {
     return this.samples.at(-1);
   }
 
+  /**
+   * Read-only snapshot of the breath-bearing samples within `windowMs` of the
+   * latest frame (defaults to the buffer's full capacity). Used by the state
+   * classifier and the trigger detectors to inspect the window without
+   * needing to know the buffer's internal storage shape.
+   */
+  samplesIn(windowMs?: number): VitalsFrame[] {
+    if (this.samples.length === 0) return [];
+    const w = windowMs ?? this.capacity();
+    const now = this.samples[this.samples.length - 1].ts;
+    const cutoff = now - w;
+    return this.samples.filter((s) => s.ts >= cutoff);
+  }
+
+  /**
+   * Time-span (ms) between the oldest and newest sample inside `windowMs`.
+   * Returns `undefined` for fewer than 2 samples in that window.
+   */
+  spanMs(windowMs?: number): number | undefined {
+    const xs = this.samplesIn(windowMs);
+    if (xs.length < 2) return undefined;
+    return xs[xs.length - 1].ts - xs[0].ts;
+  }
+
   clear() {
     this.samples = [];
   }
