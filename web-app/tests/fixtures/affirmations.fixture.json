@@ -1,0 +1,74 @@
+[
+  {
+    "id": "som-001",
+    "state": "regulated",
+    "modality": "anchor",
+    "text": "Right here, right now, the body is breathing all by itself."
+  },
+  {
+    "id": "som-002",
+    "state": "regulated",
+    "modality": "witness",
+    "text": "Notice the ground under you. The chair holding you. You are held."
+  },
+  {
+    "id": "som-003",
+    "state": "regulated",
+    "modality": "breath",
+    "text": "This breath, this pause, this next breath. Nothing else is needed."
+  },
+  {
+    "id": "som-004",
+    "state": "regulated",
+    "modality": "anchor",
+    "text": "Steady. The body has done this before and remembers how."
+  },
+  {
+    "id": "som-005",
+    "state": "activated",
+    "modality": "breath",
+    "text": "Two short breaths in. One long breath out. The exhale is the door."
+  },
+  {
+    "id": "som-006",
+    "state": "activated",
+    "modality": "witness",
+    "text": "Something rose. You noticed. That's the whole skill."
+  },
+  {
+    "id": "som-007",
+    "state": "activated",
+    "modality": "anchor",
+    "text": "Feet on the floor. Hands on something. The body is here."
+  },
+  {
+    "id": "som-008",
+    "state": "activated",
+    "modality": "breath",
+    "text": "Breathe out longer than you breathe in. Just for a minute."
+  },
+  {
+    "id": "som-009",
+    "state": "recovering",
+    "modality": "witness",
+    "text": "The body is finding its way back. Let it. Don't rush it."
+  },
+  {
+    "id": "som-010",
+    "state": "recovering",
+    "modality": "breath",
+    "text": "Slower in. Slower out. The wave is settling."
+  },
+  {
+    "id": "som-011",
+    "state": "recovering",
+    "modality": "anchor",
+    "text": "You came back. Some part of you knew the way."
+  },
+  {
+    "id": "som-012",
+    "state": "recovering",
+    "modality": "witness",
+    "text": "This is what return feels like. Remember it."
+  }
+]

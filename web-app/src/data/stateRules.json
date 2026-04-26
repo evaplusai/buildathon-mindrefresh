@@ -1,0 +1,6 @@
+{
+  "regulated": { "breathMin": 8, "breathMax": 14, "trend": "flat_or_descending" },
+  "activated": { "breathMin": 14.01, "trend": "rising_gt_1bpm_per_min", "sustainSeconds": 60 },
+  "recovering": { "trend": "descending_gt_0.5bpm_per_min", "sustainSeconds": 30 },
+  "debounceSeconds": 5
+}
