@@ -1,7 +1,7 @@
 # MindRefreshStudio — System Architecture
 
-**Status:** Draft. Aligned with `docs/02_research/02_ruview_integration_strategy.md` (final architecture decision).
-**Last updated:** 2026-04-25 (Build Day 2)
+**Status:** Partially superseded by `docs/02_research/05_canonical_build_plan.md` v3 (2026-04-26). §1 retains 4-state vocabulary for historical context; §2 vendor table cites `@ruvector/sona`/`@ruvector/core`/`@ruvector/ruvllm` which are CUT from V1; §4 sequence diagram shows an HNSW step that is CUT from V1; §7 source layout includes V0 files (`affirmationRetriever.ts`, `rephraser.ts`, `sonaPersonalization.ts`, `WhatsAliveInput.tsx`, `PatternMirror.tsx`) that are post-buildathon. See doc 05 §1 v3 amendment for the V1 cut list, ADR-010 for the 3-state classifier, and `docs/ddd/` for the V1 bounded-context contracts.
+**Last updated:** 2026-04-25 (Build Day 2); banner appended 2026-04-26 (Day 3) per `docs/02_research/06_swarm_output_review.md`.
 
 ---
 
