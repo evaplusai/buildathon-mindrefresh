@@ -168,3 +168,5 @@ MIT — see [`LICENSE`](LICENSE).
 - Demo video (Loom): _pending Day 7_
 - Demo video (YouTube unlisted backup): _pending Day 7_
 - Public GitHub repository: this repo
+- Sensor wiring photo: see `docs/assets/sensor-wiring.jpg` once captured (Day 6 task)
+- Dev tools: `?source=recorded` replays a fixture; `?dev=1` exposes a "Force morning check" button on the dashboard
