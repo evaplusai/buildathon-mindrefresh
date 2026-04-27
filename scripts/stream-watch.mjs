@@ -4,7 +4,7 @@
 //
 // Usage:  node scripts/stream-watch.mjs [ws://localhost:8765/ws/sensing]
 
-import WebSocket from 'ws';
+// Uses Node 22+ built-in global WebSocket — no `ws` package needed.
 
 const url = process.argv[2] ?? 'ws://localhost:8765/ws/sensing';
 const ws = new WebSocket(url);
@@ -12,13 +12,14 @@ const ws = new WebSocket(url);
 let lastTs = 0;
 let frames = 0;
 
-ws.on('open', () => {
+ws.addEventListener('open', () => {
   process.stderr.write(`>> connected to ${url}\n>> waiting for frames...\n`);
 });
 
-ws.on('message', (buf) => {
+ws.addEventListener('message', (event) => {
   let msg;
-  try { msg = JSON.parse(buf.toString()); } catch { return; }
+  const data = typeof event.data === 'string' ? event.data : Buffer.from(event.data).toString();
+  try { msg = JSON.parse(data); } catch { return; }
   frames++;
   const breath = (msg.breathing_rate_bpm ?? msg.breath_rate_bpm ?? 0).toFixed(1);
   const hr     = (msg.heart_rate_bpm ?? 0).toFixed(1);
@@ -38,12 +39,12 @@ ws.on('message', (buf) => {
   );
 });
 
-ws.on('error', (e) => {
-  process.stderr.write(`\nerror: ${e.message}\n`);
+ws.addEventListener('error', (e) => {
+  process.stderr.write(`\nerror: ${e.message ?? 'WebSocket error'}\n`);
   process.exit(1);
 });
 
-ws.on('close', () => {
+ws.addEventListener('close', () => {
   process.stderr.write('\n>> stream closed\n');
   process.exit(0);
 });
