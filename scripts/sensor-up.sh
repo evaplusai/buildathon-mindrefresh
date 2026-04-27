@@ -51,12 +51,19 @@ die() { echo "ERROR: $*" >&2; exit 1; }
 [[ -z "$LAN_IP" ]] && die "no LAN IP detected (en0/en1). Connect to WiFi."
 
 cmd_flash() {
-  echo ">> flashing $PORT (8 MB pre-built binaries)"
+  # 8 MB partition layout (partitions_display.csv):
+  #   0x0      bootloader
+  #   0x8000   partition-table
+  #   0xf000   ota_data_initial      <-- selects OTA slot at boot
+  #   0x20000  ota_0 (app firmware)  <-- NOT 0x10000
+  #   0x220000 ota_1 (unused)
+  echo ">> flashing $PORT (8 MB OTA layout)"
   python3 -m esptool --chip esp32s3 --port "$PORT" --baud 460800 \
     write_flash --flash_mode dio --flash_size 8MB \
-    0x0     "${BIN_DIR}/bootloader.bin" \
-    0x8000  "${BIN_DIR}/partition-table.bin" \
-    0x10000 "${BIN_DIR}/esp32-csi-node.bin"
+    0x0      "${BIN_DIR}/bootloader.bin" \
+    0x8000   "${BIN_DIR}/partition-table.bin" \
+    0xf000   "${BIN_DIR}/ota_data_initial.bin" \
+    0x20000  "${BIN_DIR}/esp32-csi-node.bin"
   echo ">> flash complete"
 }
 
@@ -74,6 +81,8 @@ cmd_up() {
   ( cd "$SERVER_DIR" && \
     cargo run --release -p wifi-densepose-sensing-server --no-default-features -- \
       --bind-addr 0.0.0.0 --udp-port "$UDP_PORT" --ws-port "$WS_PORT" \
+      --source esp32 \
+      --ui-path "${REPO_ROOT}/upstream/RuView/ui" \
       > "${PID_DIR}/sensing-server.log" 2>&1 ) &
   echo $! > "${PID_DIR}/sensing-server.pid"
 

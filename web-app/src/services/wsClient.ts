@@ -11,16 +11,38 @@ interface WsClientOpts {
 }
 
 /**
- * Translate the daemon's snake_case `SensingUpdate` JSON into the internal
- * `VitalsFrame`. Shared between live and recorded sources.
+ * Translate the daemon's `SensingUpdate` JSON into the internal `VitalsFrame`.
+ *
+ * Live frames from the sensing-server are NESTED:
+ *   { vital_signs: { breathing_rate_bpm, heart_rate_bpm, signal_quality, ... },
+ *     features:    { motion_band_power, breathing_band_power, ... },
+ *     classification: { presence, motion_level, confidence },
+ *     timestamp, source, tick, ... }
+ *
+ * Recorded fixtures (the V1 placeholder + verify-fixture.mjs) are FLAT:
+ *   { ts, breathing_rate_bpm, heart_rate_bpm, presence, motion_band_power }
+ *
+ * This function accepts both shapes so the live and recorded paths share the
+ * same downstream contract. (Verified against main.rs SensingUpdate.)
  */
 function toFrame(raw: Record<string, unknown>, source: 'live' | 'recorded'): VitalsFrame {
+  const v = (raw.vital_signs as Record<string, unknown> | undefined) ?? {};
+  const f = (raw.features as Record<string, unknown> | undefined) ?? {};
+  const c = (raw.classification as Record<string, unknown> | undefined) ?? {};
+
+  // Daemon emits seconds (float) for `timestamp`; recorded fixtures emit ms in `ts`.
+  const tsRaw = (raw.ts as number | undefined) ??
+                (typeof raw.timestamp === 'number' ? raw.timestamp * 1000 : undefined);
+
   return {
-    ts: (raw.ts as number) ?? Date.now(),
-    breathBpm: raw.breathing_rate_bpm as number | undefined,
-    hrBpm: raw.heart_rate_bpm as number | undefined,
-    presence: !!raw.presence,
-    motionBandPower: (raw.motion_band_power as number | undefined) ?? 0,
+    ts: tsRaw ?? Date.now(),
+    breathBpm: (v.breathing_rate_bpm as number | undefined) ??
+               (raw.breathing_rate_bpm as number | undefined),
+    hrBpm: (v.heart_rate_bpm as number | undefined) ??
+           (raw.heart_rate_bpm as number | undefined),
+    presence: !!(c.presence ?? raw.presence),
+    motionBandPower: (f.motion_band_power as number | undefined) ??
+                     (raw.motion_band_power as number | undefined) ?? 0,
     source,
   };
 }
