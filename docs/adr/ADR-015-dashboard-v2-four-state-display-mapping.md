@@ -1,8 +1,9 @@
 # ADR-015: Dashboard v2 displays a 4-state ladder mapped from V1's 3-state classifier
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-04-30
 **Build Day:** Post-V1 / Dashboard v2 sprint
+**Implementation:** shipped 2026-04-30 in Sprint A; `services/display/toDashboardState.ts` + 18-row exhaustive test in `tests/display/stateMapping.spec.ts`; agent's `dashboardState` is advisory (sensor wins, disagreement logged via Reflection's `disagreementLog`).
 **Supersedes:** (none — extends ADR-010)
 **Superseded by:** (none)
 

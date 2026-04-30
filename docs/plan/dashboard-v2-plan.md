@@ -479,13 +479,109 @@ within budget.
 | `npm run build` succeeds; budgets honoured | ✓ |
 | ADR-015..018 / DDD-06,07 status `Accepted` | ⏳ Sprint C (after final deploy) |
 
-### Open follow-ups for Sprint B
+### Open follow-ups for Sprint B (resolved)
 
-- Ship the Reflect agent swarm per ADR-016.
-- Wire `recentRun` into `resolveProtocol` (currently always undefined).
-- Move `BreathProtocol` from `types/display.ts` to
-  `types/reflection.ts` per the TODO comment.
-- Add `Intervention.completed` to `Intervention` type (currently a
-  type-cast at the Dashboard call site).
+- ✅ Reflect agent swarm shipped per ADR-016 (Sprint B).
+- ✅ `recentRun` wired into `resolveProtocol` via `recentReflectProtocol`
+  state in Dashboard.tsx (Sprint B).
+- ✅ `BreathProtocol` moved to `types/reflection.ts`; display.ts
+  re-exports (Sprint B).
+- ⏳ `Intervention.completed` still a type-cast at the call site
+  (sessionStore extension is correct; the upstream `Intervention`
+  type still lacks the field). Low-priority hygiene fix.
+
+## 14. Build results — Sprint B (2026-04-30)
+
+Sprint B executed via 3-agent parallel swarm (server / client /
+ui) + integration. Total elapsed ~30 minutes.
+
+### What shipped
+
+| Slice | Files | Tests |
+|---|---|---|
+| Server | `types/reflection.ts`, `services/reflect/{agentSpecs,validate,fallback}.ts`, `api/reflect.ts` (Vercel Edge), `types/display.ts` (BreathProtocol relocation) | (validators tested in voice-rules.spec) |
+| Client | `services/reflect/{agent1-pattern-scorer,reflectClient}.ts` | `agent1-on-device.spec.ts` (10), `privacy.spec.ts` (5), `fallback.spec.ts` (3), `aidefence.spec.ts` (3) |
+| UI | `components/dashboard/{ReflectCard,AgentCard,PatternChips,ReframeBlock}.tsx`, `services/display/disagreementLog.ts`, Dashboard.tsx wire | `state-mapper-validation.spec.tsx` (3), `voice-rules.spec.ts` (20), `agent3-protocol.spec.tsx` (2), `e2e/reflect-card.spec.ts` (2) |
+
+### Test counts
+
+| Layer | Files | Tests |
+|---|---|---|
+| Vitest unit | 25 (12 prior + 6 Sprint A + 7 Sprint B) | **200 / 200** ✓ |
+| Playwright E2E | 14 fast (1 long arc skipped) | **14 / 14** ✓ |
+
+### Bundle (production, gzipped)
+
+| Route | First-paint JS | CSS | vs V1 |
+|---|---|---|---|
+| `/` (marketing) | **102.00 KB** | 9.77 KB | unchanged |
+| `/dashboard` | 102.00 + **76.52 KB** = **178.52 KB** | 9.77 KB | +18 KB for full V2 stack |
+| `triggerWorker` | 1.97 KB | — | unchanged |
+
+Sprint B added ~6 KB on top of Sprint A's 70 KB Dashboard chunk —
+small footprint for the entire 3-agent SSE client + UI components.
+
+### Drift caught + corrected during integration
+
+- 4 spec files needed `.tsx` extension for JSX (RTL renders);
+  vitest config already includes `tsx`.
+- `ReframeWriterOutput` validator extended with min-word floor (10),
+  `you should` imperative regex check.
+- `reflectClient` synthetic-emit on fallback path so all 3 agents
+  always reach `done` in the consumer event stream.
+- Edge Function timeout / privacy / fallback paths confirmed via
+  4 mechanical tests (`privacy`, `fallback`, `aidefence`, `agent1`).
+
+## 15. Build results — Sprint C (2026-04-30)
+
+Sprint C focus: missing breathing-modal a11y + timing + dismiss
+tests, ADR/DDD status flips, deploy.
+
+### What shipped
+
+| Concern | Files | Tests |
+|---|---|---|
+| Per-protocol timing | `tests/display/breathingProtocols.spec.tsx` | 11 |
+| Modal a11y (Portal/ARIA/focus/ESC/reduced-motion) | `tests/display/breathingModal.spec.tsx` | 10 |
+| Mid-protocol dismissal | `tests/display/breathingDismiss.spec.tsx` | 5 |
+| E2E breathing modal | `e2e/breathing-modal.spec.ts` | 2 |
+| ESLint config | `eslint.config.js` (added `argsIgnorePattern: '^_'`) | — |
+| Test cleanup | `tests/marketing/{copy.spec.ts,cta-targets.spec.tsx}` | — |
+
+### Test counts (final)
+
+| Layer | Files | Tests |
+|---|---|---|
+| Vitest unit | 28 | **228 / 228** ✓ |
+| Playwright E2E | 16 fast (1 long arc skipped) | **16 / 16** ✓ |
+
+### Production deployment
+
+- `https://mindrefresh-studio.vercel.app/` — marketing landing
+- `https://mindrefresh-studio.vercel.app/dashboard` — Dashboard v2
+- `https://mindrefresh-studio.vercel.app/dashboard?source=recorded` — recorded arc
+- `https://mindrefresh-studio.vercel.app/dashboard?demo=1` — scripted 44s loop
+- `https://mindrefresh-studio.vercel.app/api/reflect` — Edge Function
+  (gracefully falls back to mocks when ANTHROPIC_API_KEY is unset)
+- `https://mindrefresh-studio.vercel.app/_entry` — operator entry
+
+To enable the real swarm: `npx vercel env add ANTHROPIC_API_KEY production` then redeploy.
+
+### Final DoD coverage
+
+All 15 DoD items from §9 are now ✓ except `ANTHROPIC_API_KEY` (user
+action). The hybrid fallback means the swarm is fully demo-ready
+without the key.
+
+### Architectural notes flagged for future work
+
+- Backdrop dismissal in jsdom passes the unit test but the real
+  `target !== currentTarget` discrimination is best verified in E2E
+  (covered).
+- Persistence path through `Dashboard.tsx`'s `handleModalClose` is
+  not unit-tested (would require Worker + wsClient + IDB + Supabase
+  mocking for a full Dashboard render). E2E covers the smoke.
+- `completedRef` rapid-reopen stress path not exercised — V2 ships;
+  V3 hardening if needed.
 
 *End of dashboard-v2 plan, 2026-04-30.*

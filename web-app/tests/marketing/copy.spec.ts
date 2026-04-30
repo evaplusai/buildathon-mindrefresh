@@ -15,7 +15,7 @@
 
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
-import path from 'node:path';
+// path module is no longer needed — DESIGN_HTML_PATH uses an absolute path literal.
 
 // Read design HTML — absolute path per CLAUDE.md requirement
 const DESIGN_HTML_PATH =

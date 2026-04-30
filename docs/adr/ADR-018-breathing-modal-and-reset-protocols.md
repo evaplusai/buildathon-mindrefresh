@@ -1,8 +1,9 @@
 # ADR-018: Breathing Modal — accessible full-screen overlay with 3 reset protocols, agent-advisory selection
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-04-30
 **Build Day:** Post-V1 / Dashboard v2 sprint
+**Implementation:** shipped across Sprints A–C (2026-04-30); `BreathingModal.tsx` with createPortal into `#modal-root`, ARIA dialog, focus trap, ESC/backdrop dismissal, prefers-reduced-motion fallback; 3 protocols in `data/breathProtocols.json`; `services/display/resolveProtocol.ts` (Agent 3 advisory + state fallback); `appendIntervention` extended with `completed?: boolean`; 26 dedicated tests (Sprint C added 28 a11y/timing/dismiss/e2e specs).
 **Supersedes:** (none — extends ADR-016, ADR-017)
 **Superseded by:** (none)
 

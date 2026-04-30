@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
-import { render, cleanup, screen, within } from '@testing-library/react';
+import { render, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
 

@@ -1,8 +1,9 @@
 # ADR-017: V2 multi-signal panel + Pattern Mirror + Today Strip — query-only, no new persistence
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-04-30
 **Build Day:** Post-V1 / Dashboard v2 sprint
+**Implementation:** shipped 2026-04-30 in Sprint A; `services/{patternMirror,todayStrip,signals/derive,demoMode}.ts` + IDB cache extension on `sessionStore`. 4 derived signals over `vitalsRingBuffer`; Pattern Mirror has 5 rule queries + 24h cache + cold-start placeholder; Today Strip computes contiguous segments + 4 stat tiles; Demo Mode plays scripted 44s arc with idempotent start/stop. 35 unit tests across 4 spec files.
 **Supersedes:** (none — extends ADR-005, ADR-007, DDD-04)
 **Superseded by:** (none)
 

@@ -1,8 +1,9 @@
 # ADR-016: Reflect agent swarm uses Ruv 3-tier model routing + ReasoningBank trajectories
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-04-30
 **Build Day:** Post-V1 / Dashboard v2 sprint
+**Implementation:** shipped 2026-04-30 in Sprint B; Vercel Edge Function at `web-app/api/reflect.ts`; on-device Pattern Scorer with regex fallback; @anthropic-ai/sdk@0.91.1; SSE stream with synthetic emit on fallback path; 4s per-agent timeout. Privacy invariant + aidefence + voice rules mechanically tested across 21 unit tests + 2 e2e.
 **Supersedes:** (none)
 **Superseded by:** (none)
 

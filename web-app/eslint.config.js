@@ -18,6 +18,15 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // Underscore-prefixed identifiers are intentionally unused —
+      // standard convention for "I have to declare this but won't use it"
+      // (test mock signatures, partial destructuring, etc.).
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
+    },
   },
 
   // ADR-013 / DDD-05 §Anti-corruption layer — marketing surface isolation.

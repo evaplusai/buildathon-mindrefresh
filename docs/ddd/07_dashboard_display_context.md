@@ -1,8 +1,9 @@
 # DDD — Dashboard Display Bounded Context
 
-**Status:** Proposed (V2 — Dashboard v2)
+**Status:** Accepted (V2 — Dashboard v2)
 **Source of truth:** `docs/03_designs/dashboard-v2_spec.md`, ADR-015, ADR-017
 **Build Day:** Post-V1 / Dashboard v2 sprint
+**Implementation:** shipped 2026-04-30 across Sprints A–C; 12 source files (toDashboardState + signals/derive + patternMirror + todayStrip + demoMode + resolveProtocol + disagreementLog + 9 React components + breathProtocols data); 11 invariants (mapping purity through agent-advisory protocol) mechanically tested across 84 unit tests + 4 e2e tests.
 
 ## Purpose
 
