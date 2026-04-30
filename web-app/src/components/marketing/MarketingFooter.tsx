@@ -1,4 +1,4 @@
-import MarketingLogo from './MarketingLogo';
+import Logo from '../shared/Logo';
 import { marketingCopy } from '../../data/marketing-copy';
 
 export default function MarketingFooter() {
@@ -9,7 +9,7 @@ export default function MarketingFooter() {
       <div className="max-w-[1200px] mx-auto px-8 flex justify-between items-center flex-wrap gap-4">
         {/* Logo */}
         <div className="flex items-center gap-[10px] font-serif text-[18px] text-marketing-green-900">
-          <MarketingLogo size={22} />
+          <Logo size={22} />
           {brand}
         </div>
 

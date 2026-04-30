@@ -1,4 +1,4 @@
-import MarketingLogo from './MarketingLogo';
+import Logo from '../shared/Logo';
 import { marketingCopy } from '../../data/marketing-copy';
 
 function WaitlistCta({ label, className }: { label: string; className: string }) {
@@ -30,7 +30,7 @@ export default function MarketingNav() {
       <div className="max-w-[1200px] mx-auto px-8 flex justify-between items-center gap-6">
         {/* Logo */}
         <div className="flex items-center gap-[10px] font-serif text-[22px] text-marketing-green-900 tracking-[-0.4px] font-medium">
-          <MarketingLogo size={28} />
+          <Logo size={28} />
           {brand}
         </div>
 

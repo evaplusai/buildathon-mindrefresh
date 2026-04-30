@@ -1,34 +1,30 @@
-// Dashboard — the main-thread orchestrator wiring sensing, the trigger
-// worker, and the Intervention surfaces together.
+// Dashboard — V2 composition.
 //
-// Architecture (per docs/02_research/05_canonical_build_plan.md §6):
-//   - WebSocket client streams VitalsFrames into the worker.
-//   - Worker emits state_transition / trigger events back.
-//   - On a `trigger` of type `morning_check`, render MorningCheckCard.
-//     On any other event, render AffirmationCard.
-//   - BreathGuide is paced by the latest `breathBpm` and the current state's
-//     canonical pattern (Intervention DDD invariant 7).
+// V1 wiring preserved: WebSocket → triggerWorker → state transitions →
+// IndexedDB persistence + Supabase cloud mirror + AffirmationCard /
+// MorningCheckCard for sensor-triggered surfaces.
 //
-// Memory wiring (Sprint C track 1):
-//   - SessionStore is instantiated once via createSessionStore().
-//   - On mount and after every state_transition we run morningCheckQuery
-//     and post a `memory_snapshot` to the worker so the morning_check
-//     detector sees yesterday's transitions.
-//   - Every state_transition is persisted via appendTransition, and the
-//     paired Intervention is persisted via appendIntervention.
-//   - Feedback taps on AffirmationCard call appendFeedback.
-//   - The recency window (recentAffirmationIds) is refreshed from IDB
-//     after every appendIntervention so pickAffirmation honours invariant 2
-//     across reloads.
+// V2 surface added per ADR-015 / ADR-017 / ADR-018:
+//   - StateDial + SignalsPanel + ResetCard + BreathingModal
+//   - Pattern Mirror + Today Strip aggregators (read sessionStore)
+//   - Demo Mode (?demo=1) — bypasses wsClient/worker, drives a 44s arc
+//   - Internal 3-state classifier mapped to 4-state UI via
+//     `toDashboardState` (ADR-015) — worker is unchanged.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+
 import { createWsClient } from '../services/wsClient';
 import { createSessionStore } from '../services/sessionStore';
 import { createMorningCheckQuery } from '../services/morningCheckQuery';
 import { createCloudSync } from '../services/cloudSync';
 import { pickAffirmation } from '../services/affirmationFilter';
 import affirmationsCorpus from '../data/affirmations.placeholder.json';
+
+import { toDashboardState } from '../services/display/toDashboardState';
+import { createDemoArcRunner, type DemoArcRunner } from '../services/demoMode';
+import { resolveProtocol } from '../services/display/resolveProtocol';
+
 import type { Affirmation, Intervention } from '../types/intervention';
 import type {
   MorningCheckPayload,
@@ -37,16 +33,57 @@ import type {
   TriggerEvent,
 } from '../types/state';
 import type { VitalsFrame } from '../types/vitals';
+import type { DashboardState, BreathProtocol } from '../types/display';
+
 import AffirmationCard from '../components/intervention/AffirmationCard';
 import BreathGuide from '../components/intervention/BreathGuide';
-import StateBadge from '../components/dashboard/StateBadge';
 import MorningCheckCard from '../components/dashboard/MorningCheckCard';
 import TrustedWitnessButton from '../components/dashboard/TrustedWitnessButton';
 
+import StateDial from '../components/dashboard/StateDial';
+import SignalsPanel from '../components/dashboard/SignalsPanel';
+import ResetCard from '../components/dashboard/ResetCard';
+import BreathingModal from '../components/dashboard/BreathingModal';
+import PatternMirror from '../components/dashboard/PatternMirror';
+import TodayStrip from '../components/dashboard/TodayStrip';
+import DemoModeToggle from '../components/dashboard/DemoModeToggle';
+import AvatarPill from '../components/dashboard/AvatarPill';
+import Logo from '../components/shared/Logo';
+
 const CORPUS = affirmationsCorpus as Affirmation[];
 const RECENT_WINDOW = 5;
-const SPARKLINE_WINDOW_MS = 60_000;
 const MORNING_WINDOW_MS = 24 * 3600_000;
+
+// State descriptions for the dial (per design HTML lines 1051–1083).
+const STATE_DESC: Record<DashboardState, string> = {
+  steady:
+    'Balanced rhythm. Breath even, posture mobile, recovery tracking on time. The sensor is watching for the first sign of a shift.',
+  shifting:
+    "Breath rate climbing. Postural stillness rising. The sensor caught a transition you haven't felt yet — there's an 8-minute window before it crests.",
+  overloaded:
+    'Activation peaked. Breath shallow and rapid. This is the point most tools would notice — your sensor saw it eight minutes ago.',
+  drained:
+    'Activation crashed below baseline. Movement cadence slow, breath flat. This is the after — the system asking for a different kind of rest.',
+};
+
+const STATE_GREETING: Record<DashboardState, { textA: string; em: string; textB: string }> = {
+  steady: { textA: 'Good afternoon. Your system is ', em: 'steady', textB: '.' },
+  shifting: { textA: 'Your system is ', em: 'shifting', textB: '. Caught it early.' },
+  overloaded: { textA: 'Your body is ', em: 'overloaded', textB: '.' },
+  drained: { textA: 'Your system is ', em: 'drained', textB: '.' },
+};
+
+// Map V2 BreathProtocol → V1 breathPattern enum for persistence compatibility.
+function protocolToBreathPattern(p: BreathProtocol): Intervention['breathPattern'] {
+  switch (p) {
+    case 'physiological_sigh':
+      return 'cyclic_sigh';
+    case 'box_breath':
+      return 'natural';
+    case 'four_seven_eight':
+      return 'extended_exhale';
+  }
+}
 
 interface ActiveSurface {
   intervention: Intervention;
@@ -54,42 +91,46 @@ interface ActiveSurface {
   morningPayload?: MorningCheckPayload;
 }
 
-interface VitalSample {
-  ts: number;
-  breathBpm: number;
-}
-
 export default function Dashboard() {
   const [searchParams] = useSearchParams();
   const source = searchParams.get('source') === 'recorded' ? 'recorded' : 'live';
   const devMode = searchParams.get('dev') === '1';
+  const demoUrl = searchParams.get('demo') === '1';
 
-  const [state, setState] = useState<State>('regulated');
+  const [internalState, setInternalState] = useState<State>('regulated');
   const [latestBreath, setLatestBreath] = useState<number | undefined>(undefined);
-  const [breathSamples, setBreathSamples] = useState<VitalSample[]>([]);
   const [active, setActive] = useState<ActiveSurface | null>(null);
   const [recentIds, setRecentIds] = useState<string[]>([]);
   const [whatsAliveOpen, setWhatsAliveOpen] = useState(false);
   const [whatsAliveText, setWhatsAliveText] = useState('');
-  // Tick once per second so the sparkline's right edge tracks the wall clock
-  // without having to call Date.now() during render (lint rule
-  // react-hooks/purity forbids that).
-  const [nowTick, setNowTick] = useState<number>(() => Date.now());
 
-  // Refs so the worker callback closure never sees a stale recentIds list.
-  // We update via an effect (not during render) per react-hooks/refs.
+  // V2 — display-state derivation inputs
+  const [latestSeverity, setLatestSeverity] = useState(0);
+  const [lastTransitionTs, setLastTransitionTs] = useState<number | undefined>(undefined);
+  const [regulatedBaseline] = useState(12); // worker emits BaselineUpdate; default for V2 ship
+
+  // V2 — demo + modal
+  const [demoActive, setDemoActive] = useState(demoUrl);
+  const [demoState, setDemoState] = useState<DashboardState>('steady');
+  const [breathModalOpen, setBreathModalOpen] = useState(false);
+
+  // Wall-clock tick at 1 Hz so dwell-derived state recomputes without
+  // calling Date.now() inside useMemo (react-hooks/purity rule).
+  const [nowTick, setNowTick] = useState<number>(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
   const recentIdsRef = useRef<string[]>([]);
   useEffect(() => {
     recentIdsRef.current = recentIds;
   }, [recentIds]);
 
   const workerRef = useRef<Worker | null>(null);
+  const demoRunnerRef = useRef<DemoArcRunner>(createDemoArcRunner());
 
-  // SessionStore — IDB-backed MemoryAPI. Stable across the component's
-  // lifetime; the underlying IDB connection is opened lazily on first call.
   const store = useMemo(() => createSessionStore(), []);
-  // Sprint D: write-only Supabase mirror. Fail-soft: if env vars are missing
-  // every insert collapses to a no-op and `isEnabled()` returns false.
   const cloudSync = useMemo(() => createCloudSync(), []);
   const morningCheckQuery = useMemo(
     () => createMorningCheckQuery(store, cloudSync),
@@ -97,29 +138,33 @@ export default function Dashboard() {
   );
   const cloudEnabled = cloudSync.isEnabled();
 
-  /** Re-read yesterday's transitions and push them into the worker. */
+  // Sensor-derived dashboardState — recompute whenever inputs change.
+  const sensorDashboardState: DashboardState = useMemo(() => {
+    const dwellMs = lastTransitionTs ? nowTick - lastTransitionTs : 0;
+    return toDashboardState({
+      state: internalState,
+      severity: latestSeverity,
+      dwellMs,
+      breathBpm: latestBreath,
+      regulatedBaseline,
+    });
+  }, [internalState, latestSeverity, lastTransitionTs, latestBreath, regulatedBaseline, nowTick]);
+
+  // Effective state shown in the UI: demo arc wins when demoActive, else sensor.
+  const dashboardState: DashboardState = demoActive ? demoState : sensorDashboardState;
+
   const refreshSnapshot = useCallback(async () => {
     const rows = await morningCheckQuery(MORNING_WINDOW_MS);
-    workerRef.current?.postMessage({
-      kind: 'memory_snapshot',
-      snap: { rows },
-    });
+    workerRef.current?.postMessage({ kind: 'memory_snapshot', snap: { rows } });
   }, [morningCheckQuery]);
 
-  /** Re-read the recency window from IDB. */
   const refreshRecent = useCallback(async () => {
     const ids = await store.recentAffirmationIds();
-    // store returns most-recent-first; pickAffirmation expects oldest-first.
     setRecentIds(ids.slice(0, RECENT_WINDOW).reverse());
   }, [store]);
 
-  /** Pick a fresh affirmation for the given state and update active surface. */
   const surface = useCallback(
-    (
-      forState: State,
-      transitionId: string,
-      morningPayload?: MorningCheckPayload,
-    ) => {
+    (forState: State, transitionId: string, morningPayload?: MorningCheckPayload) => {
       const intervention = pickAffirmation({
         corpus: CORPUS,
         state: forState,
@@ -130,33 +175,24 @@ export default function Dashboard() {
       const affirmation = CORPUS.find((a) => a.id === intervention.affirmationId);
       if (!affirmation) return;
       setActive({ intervention, affirmation, morningPayload });
-      // Persist the intervention, then refresh the recency window so the
-      // next pick sees this id in `recentIds`.
       void store
         .appendIntervention(intervention)
         .then(() => refreshRecent())
-        .catch(() => {
-          /* IDB never fails the caller (Memory DDD invariant) */
-        });
-      // Fire-and-forget cloud mirror (Memory DDD invariant 6: IDB is truth).
+        .catch(() => {});
       void cloudSync.insertIntervention(intervention);
     },
     [refreshRecent, store, cloudSync],
   );
 
-  // Spin up the worker + WebSocket on mount.
+  // Worker + WebSocket — skipped entirely in demo mode.
   useEffect(() => {
-    const worker = new Worker(
-      new URL('../workers/triggerWorker.ts', import.meta.url),
-      { type: 'module' },
-    );
+    if (demoActive) return;
+
+    const worker = new Worker(new URL('../workers/triggerWorker.ts', import.meta.url), {
+      type: 'module',
+    });
     workerRef.current = worker;
 
-    // Push the initial snapshot + recency window so the morning_check
-    // detector and pickAffirmation both have real data on first frame.
-    // Defer to a microtask so the setState inside `refreshRecent`
-    // doesn't fire synchronously within the effect body
-    // (react-hooks/set-state-in-effect).
     const initId = setTimeout(() => {
       void refreshSnapshot();
       void refreshRecent();
@@ -168,22 +204,18 @@ export default function Dashboard() {
         | { kind: 'trigger'; event: TriggerEvent };
       if (msg.kind === 'state_transition') {
         const t = msg.transition;
-        setState(t.to);
-        // Persist first, then surface, then refresh the snapshot so the next
-        // morning-check pass sees the new transition.
-        void store
-          .appendTransition(t)
-          .then(() => refreshSnapshot())
-          .catch(() => {});
-        // Fire-and-forget cloud mirror (Memory DDD invariant 6).
+        setInternalState(t.to);
+        setLastTransitionTs(t.ts);
+        void store.appendTransition(t).then(() => refreshSnapshot()).catch(() => {});
         void cloudSync.insertTransition(t);
         surface(t.to, t.id);
       } else if (msg.kind === 'trigger') {
         const ev = msg.event;
+        setLatestSeverity(ev.severity);
         if (ev.type === 'morning_check' && ev.morningPayload) {
           surface('regulated', ev.transitionId, ev.morningPayload);
         } else {
-          surface(state, ev.transitionId);
+          surface(internalState, ev.transitionId);
         }
       }
     };
@@ -192,39 +224,36 @@ export default function Dashboard() {
     const unsub = ws.subscribe((frame: VitalsFrame) => {
       if (typeof frame.breathBpm === 'number') {
         setLatestBreath(frame.breathBpm);
-        setBreathSamples((prev) => {
-          const cutoff = frame.ts - SPARKLINE_WINDOW_MS;
-          const next = [...prev, { ts: frame.ts, breathBpm: frame.breathBpm! }];
-          return next.filter((s) => s.ts >= cutoff);
-        });
       }
       worker.postMessage({ kind: 'vitals', frame });
     });
     ws.start({ source });
 
-    // Sparkline wall-clock tick (once per second).
-    const tickId = setInterval(() => setNowTick(Date.now()), 1000);
-
     return () => {
       clearTimeout(initId);
-      clearInterval(tickId);
       unsub();
       ws.stop();
       worker.terminate();
       workerRef.current = null;
     };
-    // We deliberately do NOT depend on `state` or `surface` — those are
-    // captured via refs / closures whose latest values we read from inside
-    // the message handler.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source, cloudSync]);
+  }, [source, cloudSync, demoActive]);
+
+  // Demo arc runner.
+  useEffect(() => {
+    const runner = demoRunnerRef.current;
+    if (!demoActive) {
+      runner.stop();
+      return;
+    }
+    runner.start((s) => setDemoState(s));
+    return () => runner.stop();
+  }, [demoActive]);
 
   const handleManual = useCallback(() => {
     workerRef.current?.postMessage({ kind: 'manual_trigger' });
   }, []);
 
-  /** ?dev=1 — synthesize a morning_check trigger so the demo can showcase
-   *  the MorningCheckCard surface without waiting 6 h of presence-gap. */
   const handleForceMorningCheck = useCallback(async () => {
     const rows = await morningCheckQuery(MORNING_WINDOW_MS);
     const yesterdayCount = rows.filter((r) => r.to_state === 'activated').length;
@@ -239,14 +268,12 @@ export default function Dashboard() {
         yesterdayCount,
         lastEventTs,
         todayBaseline,
-        regulatedBaseline: 12,
+        regulatedBaseline,
       },
     };
     surface('regulated', synthetic.transitionId, synthetic.morningPayload);
-  }, [morningCheckQuery, latestBreath, surface]);
+  }, [morningCheckQuery, latestBreath, surface, regulatedBaseline]);
 
-  /** Submit the user-typed "what's alive" sentence — IDB-only per Memory
-   *  DDD invariant 2. */
   const handleSubmitWhatsAlive = useCallback(async () => {
     const text = whatsAliveText.trim();
     const transitionId = active?.intervention.transitionId;
@@ -273,40 +300,190 @@ export default function Dashboard() {
     [active?.intervention.transitionId, store],
   );
 
+  // V2 — modal protocol resolution. Sprint A has no Reflect run yet, so
+  // recentRun stays undefined → state-fallback. nowTick keeps the
+  // resolution pure (no Date.now in render).
+  const modalProtocol: BreathProtocol = useMemo(() => {
+    return resolveProtocol({ recentRun: undefined, dashboardState, now: nowTick });
+  }, [dashboardState, nowTick]);
+
+  const handleBeginReset = useCallback(() => {
+    setBreathModalOpen(true);
+  }, []);
+
+  const handleModalClose = useCallback(
+    async (completed: boolean) => {
+      setBreathModalOpen(false);
+      // Focus restoration handled by BreathingModal's openerRef (saved on open).
+      // Log a fresh Intervention row for this breathing session.
+      const transitionId = active?.intervention.transitionId ?? globalThis.crypto.randomUUID();
+      const sessionRow: Intervention = {
+        transitionId,
+        affirmationId: `breath-${modalProtocol}`,
+        breathPattern: protocolToBreathPattern(modalProtocol),
+        ts: Date.now(),
+      };
+      try {
+        await store.appendIntervention({ ...sessionRow, completed } as Intervention & { completed: boolean });
+      } catch {
+        /* never fail the caller */
+      }
+    },
+    [active, modalProtocol, store],
+  );
+
   const breathPattern = useMemo(() => {
     if (active) return active.intervention.breathPattern;
-    if (state === 'activated') return 'cyclic_sigh';
-    if (state === 'recovering') return 'extended_exhale';
+    if (internalState === 'activated') return 'cyclic_sigh';
+    if (internalState === 'recovering') return 'extended_exhale';
     return 'natural';
-  }, [active, state]);
+  }, [active, internalState]);
+
+  // Greeting strings for the current display state.
+  const greeting = STATE_GREETING[dashboardState];
+  const stateDesc = STATE_DESC[dashboardState];
+  const windowOpenMinutes =
+    dashboardState === 'shifting' ? 8 : dashboardState === 'overloaded' ? 0 : undefined;
 
   return (
-    <main className="min-h-screen bg-surface-900 text-slate-100 overflow-x-hidden">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-8">
-        <header className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl tracking-tight">MindRefreshStudio</h1>
-            <StateBadge state={state} />
+    <div className="min-h-screen bg-marketing-cream text-marketing-ink font-sans">
+      {/* TOP NAV */}
+      <nav className="py-[18px] border-b border-marketing-lineSoft bg-white/[0.94] backdrop-blur-[12px] sticky top-0 z-50">
+        <div className="max-w-[1280px] mx-auto px-8 flex justify-between items-center gap-6">
+          <div className="flex items-center gap-[10px] font-serif text-[22px] text-marketing-green-900 tracking-[-0.4px] font-medium">
+            <Logo size={28} />
+            MindRefresh
           </div>
-          <div className="flex items-center gap-3">
-            <span
-              className={`text-[10px] uppercase tracking-widest px-2 py-1 rounded-full border ${
-                cloudEnabled
-                  ? 'border-emerald-700/60 text-emerald-300/90'
-                  : 'border-slate-700/60 text-slate-500'
-              }`}
-              title={
-                cloudEnabled
-                  ? 'State events sync to Supabase'
-                  : 'Local-only — set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable cloud sync'
-              }
+          <div className="flex gap-1">
+            <button className="text-sm text-marketing-green-900 font-medium px-4 py-2 rounded-full bg-marketing-green-50">
+              Today
+            </button>
+            <button
+              disabled
+              title="Coming soon"
+              className="text-sm text-marketing-inkSoft font-medium px-4 py-2 rounded-full opacity-60 cursor-not-allowed"
             >
+              Patterns
+            </button>
+            <button
+              disabled
+              title="Coming soon"
+              className="text-sm text-marketing-inkSoft font-medium px-4 py-2 rounded-full opacity-60 cursor-not-allowed"
+            >
+              History
+            </button>
+            <button
+              disabled
+              title="Coming soon"
+              className="text-sm text-marketing-inkSoft font-medium px-4 py-2 rounded-full opacity-60 cursor-not-allowed"
+            >
+              Sensor
+            </button>
+          </div>
+          <div className="flex items-center gap-[14px]">
+            <DemoModeToggle active={demoActive} onToggle={() => setDemoActive((v) => !v)} />
+            <AvatarPill initials="JL" />
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-[1280px] mx-auto px-8">
+        {/* HEADER */}
+        <header className="pt-12 pb-6">
+          <div className="flex items-center gap-2 font-mono text-[11px] tracking-[2px] text-marketing-green-700 mb-3 uppercase">
+            <span className="w-[7px] h-[7px] rounded-full bg-marketing-green-400 animate-pulse" />
+            {demoActive
+              ? 'Demo mode · scripted arc playing'
+              : source === 'recorded'
+                ? 'Recorded session · playback'
+                : 'Sensor reading · living room'}
+          </div>
+          <div className="flex justify-between items-end gap-8 flex-wrap">
+            <h1 className="font-serif text-[52px] leading-[1.05] tracking-[-1.4px] text-marketing-green-900 font-medium max-w-[800px]">
+              {greeting.textA}
+              <em className="italic text-marketing-green-600 font-medium">{greeting.em}</em>
+              {greeting.textB}
+            </h1>
+            <div className="flex flex-col items-end gap-1 text-[13px] text-marketing-inkMuted font-mono tracking-[0.5px]">
+              <span className="text-marketing-green-900 font-semibold text-sm">
+                {new Date().toLocaleString('en-US', {
+                  weekday: 'long',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                })}
+              </span>
+              <span>Day 12 of observation</span>
+            </div>
+          </div>
+        </header>
+
+        {/* MAIN GRID — StateDial + SignalsPanel */}
+        <section className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-6 mb-6">
+          <StateDial
+            dashboardState={dashboardState}
+            internalState={internalState}
+            description={stateDesc}
+            windowOpenMinutes={windowOpenMinutes}
+          />
+          <SignalsPanel dashboardState={dashboardState} source={source} />
+        </section>
+
+        {/* REFLECT CARD — Sprint B placeholder */}
+        <section className="bg-marketing-warmWhite border border-marketing-line rounded-[22px] p-9 mb-6 relative overflow-hidden">
+          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-marketing-green-600 to-marketing-green-300" />
+          <div className="font-mono text-[11px] tracking-[2px] text-marketing-green-700 uppercase font-semibold mb-2">
+            Reflect · agent swarm
+          </div>
+          <h2 className="font-serif text-[28px] text-marketing-green-900 font-medium tracking-[-0.4px] mb-3">
+            Type how you feel.{' '}
+            <em className="italic text-marketing-green-600 font-medium">Watch your body show up.</em>
+          </h2>
+          <p className="text-[15px] text-marketing-inkSoft leading-[1.6] max-w-[700px]">
+            The Reflect agent swarm ships in Sprint B. Three agents read your language for
+            nervous-system signals, fuse with the sensor stream, and write a reflective reframe —
+            all in under five seconds. Coming next.
+          </p>
+        </section>
+
+        {/* V1 active intervention surface (sensor-triggered) */}
+        {active?.morningPayload ? (
+          <section className="mb-6">
+            <MorningCheckCard
+              payload={active.morningPayload}
+              affirmation={active.affirmation}
+              onTalk={() => setWhatsAliveOpen(true)}
+            />
+          </section>
+        ) : active ? (
+          <section className="mb-6 grid grid-cols-1 md:grid-cols-[1fr_320px] gap-6">
+            <AffirmationCard affirmation={active.affirmation} onFeedback={handleFeedback} />
+            <BreathGuide pattern={breathPattern} breathBpm={latestBreath} />
+          </section>
+        ) : null}
+
+        {/* RESET CARD — focus restoration handled via document.activeElement
+            inside BreathingModal (no ref needed). */}
+        <ResetCard
+          dashboardState={dashboardState}
+          onBeginReset={handleBeginReset}
+        />
+
+        {/* PATTERN MIRROR */}
+        <PatternMirror store={store} />
+
+        {/* TODAY STRIP */}
+        <TodayStrip store={store} />
+
+        {/* FOOTER + dev/manual buttons */}
+        <footer className="py-8 text-xs text-marketing-inkMuted text-center max-w-2xl mx-auto flex flex-col gap-3">
+          <div className="flex items-center justify-center gap-3 flex-wrap">
+            <span className="text-[10px] uppercase tracking-widest text-marketing-inkMuted">
               {cloudEnabled ? 'Sync: ON' : 'Sync: OFF (local-only)'}
             </span>
             <button
               type="button"
               onClick={handleManual}
-              className="text-xs uppercase tracking-widest text-slate-400 hover:text-slate-100 px-3 py-1.5 rounded-full border border-slate-700"
+              className="text-xs uppercase tracking-widest text-marketing-inkSoft hover:text-marketing-green-900 px-3 py-1.5 rounded-full border border-marketing-line"
             >
               I need a moment
             </button>
@@ -314,153 +491,72 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={handleForceMorningCheck}
-                className="text-xs uppercase tracking-widest text-amber-300 hover:text-amber-100 px-3 py-1.5 rounded-full border border-amber-700/60"
-                title="Dev: force a morning_check trigger so the MorningCheckCard renders without waiting 6h"
+                className="text-xs uppercase tracking-widest text-marketing-rose hover:text-marketing-green-900 px-3 py-1.5 rounded-full border border-marketing-line"
+                title="Dev: force a morning_check trigger"
               >
                 Force morning check
               </button>
             ) : null}
+            <TrustedWitnessButton />
           </div>
-        </header>
-
-        <section className="grid gap-8 md:grid-cols-[1fr_320px] items-start">
-          <div className="space-y-6">
-            {active?.morningPayload ? (
-              <MorningCheckCard
-                payload={active.morningPayload}
-                affirmation={active.affirmation}
-                onTalk={() => setWhatsAliveOpen(true)}
-              />
-            ) : active ? (
-              <AffirmationCard affirmation={active.affirmation} onFeedback={handleFeedback} />
-            ) : (
-              <PlaceholderCard />
-            )}
-            <div className="flex justify-center">
-              <TrustedWitnessButton />
-            </div>
-          </div>
-
-          <aside className="space-y-6">
-            <BreathGuide pattern={breathPattern} breathBpm={latestBreath} />
-            <BreathSparkline samples={breathSamples} latestTs={nowTick} />
-          </aside>
-        </section>
-
-        <footer className="pt-6 text-xs text-slate-500 text-center max-w-2xl mx-auto">
-          Raw biometric signals never leave your device. Only state events
-          sync, to enable the morning check across devices.
+          <span>🔒 Local processing · Raw signals never leave your sensor</span>
         </footer>
+      </main>
 
-        {whatsAliveOpen ? (
+      {/* BREATHING MODAL */}
+      <BreathingModal
+        isOpen={breathModalOpen}
+        protocol={modalProtocol}
+        onClose={handleModalClose}
+      />
+
+      {/* WHAT'S ALIVE MODAL — V1 surface preserved */}
+      {whatsAliveOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="What's alive"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+          onClick={() => setWhatsAliveOpen(false)}
+        >
           <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="What's alive"
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
-            onClick={() => setWhatsAliveOpen(false)}
+            className="max-w-lg w-full rounded-2xl border border-marketing-line bg-marketing-warmWhite p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
           >
-            <div
-              className="max-w-lg w-full rounded-2xl border border-slate-700 bg-surface-800 p-6 space-y-4"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h2 className="text-sm uppercase tracking-widest text-accent-cyan">
-                What&rsquo;s alive
-              </h2>
-              <p className="text-xs text-slate-400">
-                Stays on this device. Never synced. Never embedded.
-              </p>
-              <textarea
-                autoFocus
-                rows={4}
-                value={whatsAliveText}
-                onChange={(e) => setWhatsAliveText(e.target.value)}
-                placeholder="A sentence about what's here right now…"
-                className="w-full rounded-lg bg-surface-900 border border-slate-700 p-3 text-sm text-slate-100 focus:outline-none focus:border-accent-cyan/60"
-              />
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setWhatsAliveOpen(false)}
-                  className="text-xs uppercase tracking-widest text-slate-400 hover:text-slate-100 px-3 py-1.5 rounded-full border border-slate-700"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSubmitWhatsAlive}
-                  disabled={!whatsAliveText.trim()}
-                  className="text-xs uppercase tracking-widest text-accent-cyan hover:text-white px-3 py-1.5 rounded-full border border-accent-cyan/50 disabled:opacity-40"
-                >
-                  Save
-                </button>
-              </div>
+            <h2 className="text-sm uppercase tracking-widest text-marketing-green-700 font-mono">
+              What's alive
+            </h2>
+            <p className="text-xs text-marketing-inkMuted">
+              Stays on this device. Never synced. Never embedded.
+            </p>
+            <textarea
+              autoFocus
+              rows={4}
+              value={whatsAliveText}
+              onChange={(e) => setWhatsAliveText(e.target.value)}
+              placeholder="A sentence about what's here right now…"
+              className="w-full rounded-lg bg-marketing-cream border border-marketing-line p-3 text-sm text-marketing-ink focus:outline-none focus:border-marketing-green-600"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setWhatsAliveOpen(false)}
+                className="text-xs uppercase tracking-widest text-marketing-inkSoft hover:text-marketing-green-900 px-3 py-1.5 rounded-full border border-marketing-line"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmitWhatsAlive}
+                disabled={!whatsAliveText.trim()}
+                className="text-xs uppercase tracking-widest text-marketing-green-800 hover:text-marketing-green-900 px-3 py-1.5 rounded-full border border-marketing-green-600 disabled:opacity-40"
+              >
+                Save
+              </button>
             </div>
           </div>
-        ) : null}
-      </div>
-    </main>
-  );
-}
-
-function PlaceholderCard() {
-  return (
-    <div className="max-w-2xl mx-auto px-8 py-10 bg-surface-800/60 rounded-2xl border border-slate-700/40 text-center text-slate-400">
-      Listening to your breath. The first surface will appear when something
-      shifts.
+        </div>
+      ) : null}
     </div>
-  );
-}
-
-interface BreathSparklineProps {
-  samples: VitalSample[];
-  latestTs: number;
-}
-
-function BreathSparkline({ samples, latestTs }: BreathSparklineProps) {
-  if (samples.length < 2) {
-    return (
-      <div className="text-xs text-slate-500 text-center">
-        Waiting for breath data…
-      </div>
-    );
-  }
-  const width = 280;
-  const height = 60;
-  const startTs = latestTs - SPARKLINE_WINDOW_MS;
-  const span = SPARKLINE_WINDOW_MS;
-  const minBpm = Math.min(...samples.map((s) => s.breathBpm), 6);
-  const maxBpm = Math.max(...samples.map((s) => s.breathBpm), 20);
-  const range = Math.max(1, maxBpm - minBpm);
-
-  const points = samples
-    .map((s) => {
-      const x = ((s.ts - startTs) / span) * width;
-      const y = height - ((s.breathBpm - minBpm) / range) * height;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(' ');
-
-  return (
-    <figure className="rounded-xl border border-slate-700/60 bg-surface-800/60 p-3">
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        className="w-full h-auto"
-        role="img"
-        aria-label="60-second breath rate trace"
-      >
-        <polyline
-          points={points}
-          fill="none"
-          stroke="rgb(34 211 238)"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-      <figcaption className="text-[10px] text-slate-500 mt-1 tracking-widest uppercase">
-        Breath · last 60 s
-      </figcaption>
-    </figure>
   );
 }

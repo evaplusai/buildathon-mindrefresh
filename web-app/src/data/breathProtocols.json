@@ -1,0 +1,67 @@
+{
+  "physiological_sigh": {
+    "rounds": 5,
+    "phases": [
+      {
+        "label": "Inhale",
+        "durationMs": 2000,
+        "instruction": "Breathe in <em>through your nose.</em>"
+      },
+      {
+        "label": "Top-up",
+        "durationMs": 1000,
+        "instruction": "A second small <em>top-up.</em>"
+      },
+      {
+        "label": "Exhale",
+        "durationMs": 5000,
+        "instruction": "Long, slow exhale <em>through your mouth.</em>"
+      }
+    ]
+  },
+  "box_breath": {
+    "rounds": 4,
+    "phases": [
+      {
+        "label": "Inhale",
+        "durationMs": 4000,
+        "instruction": "Breathe in <em>for four counts.</em>"
+      },
+      {
+        "label": "Hold",
+        "durationMs": 4000,
+        "instruction": "Hold <em>four counts.</em>"
+      },
+      {
+        "label": "Exhale",
+        "durationMs": 4000,
+        "instruction": "Exhale <em>four counts.</em>"
+      },
+      {
+        "label": "Hold",
+        "durationMs": 4000,
+        "instruction": "Hold <em>four counts.</em>"
+      }
+    ]
+  },
+  "four_seven_eight": {
+    "rounds": 4,
+    "phases": [
+      {
+        "label": "Inhale",
+        "durationMs": 4000,
+        "instruction": "Breathe in <em>for four counts.</em>"
+      },
+      {
+        "label": "Hold",
+        "durationMs": 7000,
+        "instruction": "Hold <em>for seven counts.</em>"
+      },
+      {
+        "label": "Exhale",
+        "durationMs": 8000,
+        "instruction": "Slow exhale <em>for eight counts.</em>"
+      }
+    ]
+  }
+}

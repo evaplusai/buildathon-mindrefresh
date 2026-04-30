@@ -1,18 +1,19 @@
-interface MarketingLogoProps {
+interface LogoProps {
   size?: number;
 }
 
 /**
- * MarketingLogo — the 3-circle logo mark.
+ * Logo — the 3-circle MindRefresh brand mark.
  *
  * SVG sourced verbatim from docs/03_designs/MindRefreshStudio v2.html
- * lines 358–362 (nav logo-mark). Used in: nav, final-CTA, footer.
- * Per ADR-014: single source to avoid drift.
+ * lines 358–362. Used by both marketing AND dashboard surfaces — this
+ * file lives in `components/shared/` so the ESLint isolation rules on
+ * the marketing/dashboard split don't tag it as a boundary crossing.
  *
- * Default size: 28×28. Pass `size` prop to override both width and height.
+ * Default size: 28×28. Pass `size` prop to override.
  * Stroke colour: #27500A (--green-800). Inner circle fill: #27500A.
  */
-export default function MarketingLogo({ size = 28 }: MarketingLogoProps) {
+export default function Logo({ size = 28 }: LogoProps) {
   return (
     <svg
       viewBox="0 0 32 32"

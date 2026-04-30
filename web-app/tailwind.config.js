@@ -46,6 +46,33 @@ export default {
         serif: ['"Source Serif 4"', 'Georgia', '"Iowan Old Style"', 'serif'],
         sans:  ['"Source Sans 3"', '-apple-system', 'BlinkMacSystemFont', '"Helvetica Neue"', 'sans-serif'],
       },
+      // Dashboard v2 animation keyframes — ring rotation, core breathe, live dot, orb pulse
+      // Per design HTML lines 202–206 and ADR-015 (state-keyed animation durations).
+      keyframes: {
+        'ring-rotate': {
+          to: { transform: 'rotate(360deg)' },
+        },
+        'ring-breathe': {
+          '0%, 100%': { transform: 'scale(1)', opacity: '0.9' },
+          '50%':       { transform: 'scale(1.18)', opacity: '1' },
+        },
+        'live-dot': {
+          '0%, 100%': { opacity: '1', transform: 'scale(1)' },
+          '50%':       { opacity: '0.5', transform: 'scale(1.4)' },
+        },
+        'orb-pulse': {
+          '0%, 100%': { opacity: '0.3', transform: 'scale(0.95)' },
+          '50%':       { opacity: '0.6', transform: 'scale(1.05)' },
+        },
+      },
+      animation: {
+        'ring-rotate-32s':  'ring-rotate 32s linear infinite',
+        'ring-rotate-22s':  'ring-rotate 22s linear infinite',
+        'ring-rotate-16s':  'ring-rotate 16s linear infinite',
+        'ring-breathe-5s':  'ring-breathe 5s ease-in-out infinite',
+        'live-dot':         'live-dot 2.4s ease-in-out infinite',
+        'orb-pulse':        'orb-pulse 5s ease-in-out infinite',
+      },
     },
   },
   plugins: [require('@tailwindcss/typography')],

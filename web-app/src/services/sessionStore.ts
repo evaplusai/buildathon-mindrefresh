@@ -16,6 +16,14 @@
 //   • feedback         keyPath=id, indexes by_transition_id, by_ts
 //   • whats_alive      keyPath=id, indexes by_transition_id, by_ts
 //
+// V2 Extension (Sprint A, ADR-017, ADR-018):
+//   • getTransitionsSince(sinceTs) — ts-based query needed by patternMirror + todayStrip.
+//   • getInterventionsSince(sinceTs) — needed for reset markers and effectiveness queries.
+//   • getPatternMirrorSnapshot / putPatternMirrorSnapshot — 24h IDB cache under
+//       key `patternMirror:<YYYY-MM-DD>` stored in the `whats_alive` store (reuses
+//       existing connection; no new IDB store per ADR-017 §"What we MUST NOT rebuild").
+//   • appendIntervention accepts optional `completed` field (ADR-018 §C).
+//
 // The `MorningRow` shape is the snake_case row used by the cross-context
 // boundary (this file is the anti-corruption layer per Memory DDD
 // §Anti-corruption — internal `StateTransition.from` becomes external
@@ -27,6 +35,7 @@ import type { State, StateTransition } from '../types/state';
 import type { Intervention } from '../types/intervention';
 import type { MemoryAPI, MorningRow } from '../types/session';
 import type { Unsubscribe } from '../types/vitals';
+import type { PatternMirrorSnapshot } from './patternMirror';
 
 /** Hardcoded user identifier for V1 per ADR-007. */
 export const DEMO_USER_ID = 'demo-user-001';
@@ -60,6 +69,21 @@ interface InterventionRow {
   transition_id: string;
   affirmation_id: string;
   breath_pattern: string;
+  /** Whether the breathing session was completed (ADR-018 §C). Defaults to
+   *  true for all legacy rows. Stored as part of the JSON value — no schema
+   *  migration required for an IDB key-value store. */
+  completed?: boolean;
+}
+
+/** V2 Extension: row shape for the Pattern Mirror 24h cache. Stored in
+ *  the `whats_alive` store as a JSON-serialised blob under the special key
+ *  `patternMirror:<YYYY-MM-DD>`. Re-uses the existing IDB connection per
+ *  ADR-017 §"What we MUST NOT rebuild". */
+interface PatternMirrorCacheRow {
+  id: string;          // always `patternMirror:<YYYY-MM-DD>`
+  ts: number;          // write timestamp (used for 24h TTL check)
+  transition_id: string; // empty string sentinel — fulfils store keyPath contract
+  text: string;        // JSON-serialised PatternMirrorSnapshot
 }
 
 interface FeedbackRow {
@@ -113,14 +137,54 @@ export interface SessionStoreOpts {
 
 type PersistedKind = 'transition' | 'intervention' | 'feedback' | 'whats_alive';
 
+/** V2 extension: augments MemoryAPI with Display-context query methods
+ *  (ADR-017 Sprint A Block 2). The base MemoryAPI surface is unchanged. */
+export interface SessionStore extends MemoryAPI {
+  /**
+   * All transitions with ts >= sinceTs, sorted ascending by ts.
+   * Used by patternMirror and todayStrip per ADR-017.
+   */
+  getTransitionsSince(sinceTs: number): Promise<MorningRow[]>;
+
+  /**
+   * All intervention rows with ts >= sinceTs, sorted ascending by ts.
+   * Returns V2 extended rows including the `completed` flag (ADR-018 §C).
+   */
+  getInterventionsSince(sinceTs: number): Promise<Array<{
+    id: string;
+    ts: number;
+    transitionId: string;
+    affirmationId: string;
+    breathPattern: string;
+    completed: boolean;
+  }>>;
+
+  /**
+   * Read the cached PatternMirrorSnapshot for the given date string (YYYY-MM-DD).
+   * Returns null if no cache exists for that date.
+   * Per ADR-017: cached under key `patternMirror:<YYYY-MM-DD>`.
+   */
+  getPatternMirrorSnapshot(date: string): Promise<PatternMirrorSnapshot | null>;
+
+  /**
+   * Persist a PatternMirrorSnapshot for the given date.
+   * TTL is implicit: caller checks `snapshot.computedAt` vs now to decide
+   * whether to re-use or recompute (24h window, per ADR-017).
+   */
+  putPatternMirrorSnapshot(date: string, snap: PatternMirrorSnapshot): Promise<void>;
+}
+
 /**
  * Construct a SessionStore — the IDB-backed `MemoryAPI` aggregate.
+ *
+ * Returns the V2 `SessionStore` interface which is a strict superset of the
+ * V1 `MemoryAPI`. All existing callers continue to work unchanged.
  *
  * IMPORTANT: this returns a SYNC handle to an ASYNC underlying database;
  * the IDB connection is opened lazily on first use. Every public method
  * is async and awaits the connection before doing work.
  */
-export function createSessionStore(opts: SessionStoreOpts = {}): MemoryAPI {
+export function createSessionStore(opts: SessionStoreOpts = {}): SessionStore {
   const dbName = opts.dbName ?? DB_NAME;
   const userId = opts.userId ?? DEMO_USER_ID;
   const newId = opts.newId ?? (() => globalThis.crypto.randomUUID());
@@ -206,7 +270,9 @@ export function createSessionStore(opts: SessionStoreOpts = {}): MemoryAPI {
     emitPersisted('transition');
   }
 
-  async function appendIntervention(i: Intervention): Promise<void> {
+  async function appendIntervention(
+    i: Intervention & { completed?: boolean },
+  ): Promise<void> {
     const db = await getDb();
     const row: InterventionRow = {
       id: newId(),
@@ -215,6 +281,10 @@ export function createSessionStore(opts: SessionStoreOpts = {}): MemoryAPI {
       transition_id: i.transitionId,
       affirmation_id: i.affirmationId,
       breath_pattern: i.breathPattern,
+      // ADR-018 §C: persist `completed`; default true for legacy callers that
+      // don't pass the field (preserves backward compat — legacy data treated as
+      // completed per ADR-018 Consequences §Negative).
+      completed: i.completed ?? true,
     };
     await db.put('interventions', row);
     emitPersisted('intervention');
@@ -295,6 +365,101 @@ export function createSessionStore(opts: SessionStoreOpts = {}): MemoryAPI {
     return () => persistedListeners.delete(cb);
   }
 
+  // ──────────────────────────────────────────────────────────────────────
+  // V2 Extension — Display context query methods (ADR-017, ADR-018)
+  // ──────────────────────────────────────────────────────────────────────
+
+  /**
+   * All transitions with ts >= sinceTs, sorted ascending by ts.
+   * Used by patternMirror.ts and todayStrip.ts.
+   */
+  async function getTransitionsSince(sinceTs: number): Promise<MorningRow[]> {
+    const db = await getDb();
+    const tx = db.transaction('transitions', 'readonly');
+    const idx = tx.store.index('by_user_id_ts');
+    const range = IDBKeyRange.bound([userId, sinceTs], [userId, Infinity]);
+    const rows = await idx.getAll(range);
+    await tx.done;
+    return rows
+      .map(rowToMorningRow)
+      .sort((a, b) => a.ts - b.ts);
+  }
+
+  /**
+   * All intervention rows with ts >= sinceTs, sorted ascending by ts.
+   * Includes the `completed` flag added in ADR-018 §C.
+   */
+  async function getInterventionsSince(sinceTs: number): Promise<Array<{
+    id: string;
+    ts: number;
+    transitionId: string;
+    affirmationId: string;
+    breathPattern: string;
+    completed: boolean;
+  }>> {
+    const db = await getDb();
+    const tx = db.transaction('interventions', 'readonly');
+    const idx = tx.store.index('by_user_id_ts');
+    const range = IDBKeyRange.bound([userId, sinceTs], [userId, Infinity]);
+    const rows = await idx.getAll(range);
+    await tx.done;
+    return rows
+      .sort((a, b) => a.ts - b.ts)
+      .map((r) => ({
+        id: r.id,
+        ts: r.ts,
+        transitionId: r.transition_id,
+        affirmationId: r.affirmation_id,
+        breathPattern: r.breath_pattern,
+        // Legacy rows without `completed` field default to true (ADR-018 §Negative).
+        completed: r.completed ?? true,
+      }));
+  }
+
+  /** IDB key used for the Pattern Mirror cache. */
+  function patternMirrorKey(date: string): string {
+    return `patternMirror:${date}`;
+  }
+
+  /**
+   * Read the cached PatternMirrorSnapshot for a given YYYY-MM-DD date.
+   * Stored as a JSON blob in the `whats_alive` store under a sentinel key
+   * (re-uses the existing IDB connection; no new store per ADR-017).
+   */
+  async function getPatternMirrorSnapshot(
+    date: string,
+  ): Promise<PatternMirrorSnapshot | null> {
+    const db = await getDb();
+    const key = patternMirrorKey(date);
+    const row = await db.get('whats_alive', key) as PatternMirrorCacheRow | undefined;
+    if (!row) return null;
+    try {
+      return JSON.parse(row.text) as PatternMirrorSnapshot;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Persist a PatternMirrorSnapshot for a YYYY-MM-DD date.
+   * The snapshot is stored as a JSON blob; the `computedAt` timestamp inside
+   * the snapshot is used by callers to check the 24h TTL.
+   */
+  async function putPatternMirrorSnapshot(
+    date: string,
+    snap: PatternMirrorSnapshot,
+  ): Promise<void> {
+    const db = await getDb();
+    const key = patternMirrorKey(date);
+    const row: PatternMirrorCacheRow = {
+      id: key,
+      ts: snap.computedAt,
+      transition_id: '',
+      text: JSON.stringify(snap),
+    };
+    await db.put('whats_alive', row);
+  }
+
   return {
     appendTransition,
     appendIntervention,
@@ -303,5 +468,9 @@ export function createSessionStore(opts: SessionStoreOpts = {}): MemoryAPI {
     recentAffirmationIds,
     morningCheckQuery,
     onPersisted,
+    getTransitionsSince,
+    getInterventionsSince,
+    getPatternMirrorSnapshot,
+    putPatternMirrorSnapshot,
   };
 }

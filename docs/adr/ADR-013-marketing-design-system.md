@@ -1,9 +1,21 @@
 # ADR-013: Marketing surface uses an isolated cream/green design system
 
-**Status:** Accepted
+**Status:** Accepted (amended 2026-04-30 for dashboard-v2)
 **Date:** 2026-04-29
 **Build Day:** 6 of 8 (post-feature-freeze planning)
 **Implementation:** shipped 2026-04-29; `web-app/src/styles/marketing-tokens.css` + `tailwind.config.js` `marketing.*` palette + `font-serif` / `font-sans` aliases; MarketingLayout idempotently injects the Google Fonts `<link>` on mount; ESLint `no-restricted-imports` blocks enforce isolation in both directions.
+
+**Amendment 2026-04-30 (Sprint A, dashboard-v2):** Font loading moved
+to `index.html` at the global level so both the marketing route AND the
+dashboard route share Source Serif 4 + Source Sans 3. The original
+"marketing-only fonts" isolation rule is RELAXED — the dashboard v2
+design uses the same cream/green palette and serif typography as the
+marketing surface (per ADR-015 and design HTML) so duplicate font
+loading is now intentional. `MarketingLayout`'s runtime `<link>`
+injection is removed (was redundant). The shared brand mark (3-circle
+logo) moved from `components/marketing/MarketingLogo.tsx` to
+`components/shared/Logo.tsx` so the dashboard can import it without
+crossing the marketing/dashboard ESLint isolation boundary.
 **Supersedes:** (none)
 **Superseded by:** (none)
 

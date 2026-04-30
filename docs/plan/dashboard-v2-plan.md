@@ -406,4 +406,86 @@ All items must be true to call Dashboard v2 shipped:
 If during execution the plan tempts you toward any of the above, the
 answer is no.
 
+## 13. Build results — Sprint A (2026-04-30)
+
+Sprint A executed via 3-agent parallel swarm (foundation / aggregators /
+components) + integration pass. Total elapsed ~25 minutes.
+
+### What shipped
+
+| Slice | Files | Tests |
+|---|---|---|
+| Foundation | `types/display.ts`, `services/display/toDashboardState.ts`, `services/signals/{derive,bufferAccess}.ts` | `stateMapping.spec.ts` (18), `signalsDerive.spec.ts` (12) |
+| Aggregators | `services/{patternMirror,todayStrip,demoMode}.ts`, `services/display/resolveProtocol.ts`, `data/breathProtocols.json`, `services/sessionStore.ts` extensions | `patternMirror.spec.ts` (11), `todayStrip.spec.ts` (8), `demo-mode.spec.ts` (8), `resolveProtocol.spec.ts` (8) |
+| Components | `components/dashboard/{StateDial,Mandala,StateLadder,SignalsPanel,PatternMirror,TodayStrip,ResetCard,BreathingModal,DemoModeToggle,AvatarPill}.tsx`; `components/shared/Logo.tsx`; `tailwind.config.js` keyframes (`ring-rotate`, `ring-breathe`, `live-dot`, `orb-pulse`); `index.html` Google Fonts | (no per-component unit tests for V2; covered by Sprint C `breathingModal.spec.ts` + e2e) |
+| Integration | `pages/Dashboard.tsx` refactor; `App.tsx` Suspense; `index.html` `#modal-root` | (existing e2e covers) |
+
+### Test counts
+
+| Layer | Files | Tests |
+|---|---|---|
+| Vitest unit | 18 (12 prior + 6 Sprint A) | **154 / 154** ✓ |
+| Playwright E2E | 13 fast (1 long arc skipped) | **12 / 12** ✓ |
+
+### Bundle (production, gzipped)
+
+| Route | First-paint JS | CSS | Notes |
+|---|---|---|---|
+| `/` (marketing) | **102.29 KB** | 9.46 KB | Target ≤ 200 KB — **49% headroom** |
+| `/dashboard` | 102.29 + **70.10 KB** lazy chunk = **172.39 KB** | 9.46 KB | Target ≤ 220 KB — **22% headroom** |
+| `triggerWorker` | 1.97 KB | — | Unchanged |
+
+V2 component additions (StateDial, Mandala, SignalsPanel, PatternMirror,
+TodayStrip, BreathingModal, ResetCard, DemoModeToggle, AvatarPill, +
+3 new services) added 12 KB to the dashboard chunk vs V1's 58 KB. Well
+within budget.
+
+### Architectural drift caught + corrected
+
+- `BreathProtocol` enum mismatch (`'4_7_8'` vs `'four_seven_eight'`) —
+  unified to `'four_seven_eight'` across `types/display.ts`,
+  `breathProtocols.json`, and components.
+- `MarketingLogo` shared by both surfaces — moved to
+  `components/shared/Logo.tsx` to honour the ADR-013 isolation rule
+  (dashboard can't import from `components/marketing/**`). ADR-013
+  amended in place to record the V2 font-loading + shared-Logo change.
+- Several React 19 strictness errors (purity, set-state-in-effect)
+  fixed with `nowTick` 1Hz state and microtask-deferred state resets.
+- E2E `marketing-fonts` test rewritten: V2 ships fonts via
+  `index.html` globally, so the original "only on marketing" assertion
+  no longer applies. New test: "Source Serif 4 link present exactly
+  once on each route." Same regression-detection power, V2-correct
+  semantics.
+- E2E `dashboard-smoke` test selectors updated for the V2 layout
+  (StateDial heading + new privacy footer wording).
+
+### Audit — Sprint A DoD coverage
+
+| DoD item | Status |
+|---|---|
+| `/dashboard` renders v2 surface end-to-end | ✓ |
+| `/dashboard?source=recorded` plays recorded arc | ✓ |
+| `/dashboard?demo=1` plays scripted 44 s loop | ✓ (DemoArcRunner verified by unit) |
+| `/dashboard?dev=1` keeps working | ✓ (existing dev-mode e2e passes) |
+| Reflect card swarm | ⏳ Sprint B |
+| Privacy invariant (Agents 2/3 never see raw text) | ⏳ Sprint B |
+| ReasoningBank trajectory | ⏳ Sprint B |
+| Pattern Mirror renders 4 observations or cold-start | ✓ |
+| Today Strip renders day's transitions + 4 stat tiles | ✓ |
+| SignalsPanel renders 4 bars | ✓ (proxy values per ADR-017) |
+| ResetCard + BreathingModal play 3 protocols | ✓ (Sprint C will add per-protocol tests) |
+| `npm test` green | ✓ 154 / 154 |
+| `npm run lint` clean | ✓ (1 unrelated warning) |
+| `npm run build` succeeds; budgets honoured | ✓ |
+| ADR-015..018 / DDD-06,07 status `Accepted` | ⏳ Sprint C (after final deploy) |
+
+### Open follow-ups for Sprint B
+
+- Ship the Reflect agent swarm per ADR-016.
+- Wire `recentRun` into `resolveProtocol` (currently always undefined).
+- Move `BreathProtocol` from `types/display.ts` to
+  `types/reflection.ts` per the TODO comment.
+- Add `Intervention.completed` to `Intervention` type (currently a
+  type-cast at the Dashboard call site).
+
 *End of dashboard-v2 plan, 2026-04-30.*

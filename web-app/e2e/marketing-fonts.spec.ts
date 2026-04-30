@@ -34,53 +34,42 @@ import { test, expect } from '@playwright/test';
 
 const FONT_LINK_HREF_RE = /fonts\.googleapis\.com.*Source\+Serif\+4/;
 
-test.describe('Font isolation — Source Serif 4 link only on marketing route (ADR-013)', () => {
-  test('marketing route injects the Google Fonts <link>; dashboard does not', async ({
-    browser,
-  }) => {
-    // --- marketing landing ---
-    const marketingCtx = await browser.newContext();
-    const marketingPage = await marketingCtx.newPage();
-    await marketingPage.goto('/');
-    await marketingPage.waitForLoadState('domcontentloaded');
-    // MarketingLayout injects via useEffect; give it a beat.
-    await marketingPage.waitForFunction(
-      () =>
-        Array.from(document.head.querySelectorAll('link[rel="stylesheet"]'))
-          .some((l) => /fonts\.googleapis\.com.*Source\+Serif\+4/.test((l as HTMLLinkElement).href)),
-      undefined,
-      { timeout: 10_000 },
-    );
-    const marketingLinkCount = await marketingPage.evaluate(() => {
-      const links = Array.from(document.head.querySelectorAll('link[rel="stylesheet"]'));
-      return links.filter((l) =>
-        /fonts\.googleapis\.com.*Source\+Serif\+4/.test((l as HTMLLinkElement).href),
-      ).length;
-    });
-    expect(
-      marketingLinkCount,
-      'Marketing route should inject exactly one Source Serif 4 stylesheet link',
-    ).toBe(1);
-    await marketingCtx.close();
+// V2 — Dashboard v2 ships the same cream/green design system as the marketing
+// surface (per ADR-015 / ADR-017), and the index.html ships a single
+// Source Serif 4 + Source Sans 3 <link> globally. The original ADR-013
+// "marketing-only fonts" invariant is amended for V2: both routes share
+// fonts via index.html. MarketingLayout's runtime <link> injection is now
+// a redundant no-op when the index.html link is present (idempotency:
+// it skips when one already exists with `data-marketing-font`).
+//
+// What this test STILL verifies: the Google Fonts link is present on
+// the marketing route AND on the dashboard route — exactly once each
+// (no duplicate injection).
 
-    // --- dashboard in a fresh context ---
-    const dashCtx = await browser.newContext();
-    const dashPage = await dashCtx.newPage();
-    await dashPage.goto('/dashboard');
-    await dashPage.waitForLoadState('domcontentloaded');
-    await dashPage.waitForTimeout(1000);
-    const dashLinkCount = await dashPage.evaluate(() => {
-      const links = Array.from(document.head.querySelectorAll('link[rel="stylesheet"]'));
-      return links.filter((l) =>
-        /fonts\.googleapis\.com.*Source\+Serif\+4/.test((l as HTMLLinkElement).href),
-      ).length;
+test.describe('Source Serif 4 fonts available on both routes', () => {
+  for (const path of ['/', '/dashboard?source=recorded']) {
+    test(`Source Serif 4 link present exactly once on ${path}`, async ({ browser }) => {
+      const ctx = await browser.newContext();
+      const page = await ctx.newPage();
+      await page.goto(path);
+      await page.waitForLoadState('domcontentloaded');
+      await page.waitForFunction(
+        () =>
+          Array.from(document.head.querySelectorAll('link[rel="stylesheet"]'))
+            .some((l) => /fonts\.googleapis\.com.*Source\+Serif\+4/.test((l as HTMLLinkElement).href)),
+        undefined,
+        { timeout: 10_000 },
+      );
+      const count = await page.evaluate(() => {
+        const links = Array.from(document.head.querySelectorAll('link[rel="stylesheet"]'));
+        return links.filter((l) =>
+          /fonts\.googleapis\.com.*Source\+Serif\+4/.test((l as HTMLLinkElement).href),
+        ).length;
+      });
+      expect(count, 'Source Serif 4 link should be loaded exactly once').toBe(1);
+      await ctx.close();
     });
-    expect(
-      dashLinkCount,
-      'Dashboard route MUST NOT inject the Source Serif 4 stylesheet link',
-    ).toBe(0);
-    await dashCtx.close();
-  });
+  }
 });
 
 // Eslint hint: regex declared at module scope but the evaluate() callbacks

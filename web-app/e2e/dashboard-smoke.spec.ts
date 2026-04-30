@@ -1,7 +1,6 @@
 import { expect, test, type ConsoleMessage } from '@playwright/test';
 
-const PRIVACY_PROMISE =
-  'Raw biometric signals never leave your device. Only state events sync, to enable the morning check across devices.';
+const PRIVACY_FOOTER_RE = /Local processing.*Raw signals never leave/i;
 
 // Suppression list — third-party / informational console output that is not a
 // product bug. Kept small so we surface real product errors loudly.
@@ -31,30 +30,20 @@ test.describe('Dashboard smoke (recorded source)', () => {
 
     await page.goto('/dashboard?source=recorded');
 
-    // Title.
-    await expect(page).toHaveTitle('MindRefreshStudio');
+    // Title — index.html default; MarketingLanding overrides to its own
+    // title only on /, so /dashboard keeps the index.html title.
+    await expect(page).toHaveTitle(/MindRefresh/);
 
-    // StateBadge — role="status" with aria-label "Current state: ..."
-    const stateBadge = page.getByRole('status', { name: /current state/i });
-    await expect(stateBadge).toBeVisible({ timeout: 10_000 });
-    const stateLabel = await stateBadge.textContent();
-    expect(stateLabel?.trim().length ?? 0).toBeGreaterThan(0);
+    // StateDial — the V2 hero. Initial state is steady; the H1 greeting
+    // contains "steady" in italic.
+    const greetingHeading = page.locator('h1').filter({ hasText: /steady|shifting|overloaded|drained/i });
+    await expect(greetingHeading.first()).toBeVisible({ timeout: 10_000 });
 
-    // BreathGuide — role="img" with aria-label that begins with one of the
-    // pattern descriptions. On initial render in "regulated" state the
-    // pattern is "natural" → label "Natural follow at NN BPM".
-    const breathGuide = page.getByRole('img', {
-      name: /(Natural follow|Cyclic sigh|Extended exhale)/i,
-    });
-    await expect(breathGuide).toBeVisible({ timeout: 10_000 });
+    // Privacy footer (V2 wording).
+    await expect(page.getByText(PRIVACY_FOOTER_RE)).toBeVisible();
 
-    // Privacy footer (verbatim).
-    await expect(page.getByText(PRIVACY_PROMISE)).toBeVisible();
-
-    // Worker — Worker constructor is exposed in window AND we have evidence
-    // the dashboard mounted (the StateBadge above is rendered by the same
-    // component that spawns the worker, so its presence is the small DOM
-    // signal of completion).
+    // Worker — Worker constructor is exposed in window. Dashboard.tsx
+    // spawns one when not in demo mode.
     const hasWorker = await page.evaluate(() => 'Worker' in window);
     expect(hasWorker).toBe(true);
 

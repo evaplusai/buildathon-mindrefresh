@@ -1,4 +1,4 @@
-import MarketingLogo from './MarketingLogo';
+import Logo from '../shared/Logo';
 import { marketingCopy } from '../../data/marketing-copy';
 
 function WaitlistCta({ label, className }: { label: string; className: string }) {
@@ -30,7 +30,7 @@ export default function FinalCta() {
       <div className="max-w-[1200px] mx-auto px-8">
         {/* Logo mark — larger version matching design (80×80) */}
         <div className="w-20 h-20 mx-auto mb-8">
-          <MarketingLogo size={80} />
+          <Logo size={80} />
         </div>
 
         <h2 className="font-serif text-[64px] leading-[1.05] text-marketing-green-900 font-medium tracking-[-1.5px] mb-6 max-w-[820px] mx-auto">
