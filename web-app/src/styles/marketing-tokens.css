@@ -1,0 +1,24 @@
+/* Marketing surface design tokens — sourced verbatim from docs/03_designs/MindRefreshStudio v2.html. Per ADR-013, these tokens are scoped to the marketing surface only. */
+:root {
+  --green-50: #EAF3DE;
+  --green-100: #C0DD97;
+  --green-200: #97C459;
+  --green-300: #7FB13C;
+  --green-400: #639922;
+  --green-600: #3B6D11;
+  --green-700: #2F5A0D;
+  --green-800: #27500A;
+  --green-900: #173404;
+  --cream: #FBF9F2;
+  --cream-2: #F5F1E4;
+  --warm-white: #FFFEFA;
+  --ink: #1A2310;
+  --ink-soft: #3D4A2E;
+  --ink-muted: #6B7558;
+  --rose: #C97A6B;
+  --line: rgba(39, 80, 10, 0.12);
+  --line-soft: rgba(39, 80, 10, 0.06);
+  --serif: "Source Serif 4", Georgia, "Iowan Old Style", serif;
+  --sans: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+}

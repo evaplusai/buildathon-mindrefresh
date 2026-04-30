@@ -1,0 +1,41 @@
+# Vendored upstream clones — never deployed
+upstream/
+
+# Local agent / swarm state
+.claude/
+.claude-flow/
+.mcp.json
+
+# Build outputs (Vercel rebuilds from source)
+web-app/dist/
+web-app/node_modules/
+node_modules/
+
+# Test artifacts
+web-app/test-results/
+web-app/playwright-report/
+web-app/coverage/
+
+# Local env / config (already gitignored, but belt + suspenders)
+.env
+.envrc
+*.local
+
+# Sensor / firmware artifacts that don't ship to the web
+scripts/.run/
+*.bin
+*.csv
+*.jsonl
+
+# Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Recordings + research-only assets (deploy doesn't need these)
+docs/02_research/
+docs/03_designs/MindRefreshStudio v2.html
+docs/03_designs/images/
+
+# Git internals (Vercel ignores anyway, but explicit)
+.git/

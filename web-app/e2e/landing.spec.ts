@@ -1,29 +1,62 @@
-import { expect, test } from '@playwright/test';
+/**
+ * e2e/landing.spec.ts
+ *
+ * Playwright smoke — marketing landing page at /.
+ *
+ * Covered contracts (ADR-012):
+ *  - Hero <h1> contains the full headline text
+ *  - Banner announces early access
+ *  - The live-demo card "Begin →" link navigates to /dashboard?source=recorded
+ */
 
-const PRIVACY_PROMISE =
-  'Raw biometric signals never leave your device. Only state events sync, to enable the morning check across devices.';
+import { test, expect } from '@playwright/test';
 
-test.describe('Landing page', () => {
-  test('renders heading, privacy promise, and dashboard links', async ({ page }) => {
+test.describe('Marketing landing page — /', () => {
+  test('hero h1 contains "Catch the crash", "before", and "it catches you"', async ({
+    page,
+  }) => {
     await page.goto('/');
 
-    // Heading containing brand name. The h1 is "MindRefreshStudio".
-    const heading = page.getByRole('heading', { level: 1, name: /MindRefreshStudio/ });
-    await expect(heading).toBeVisible();
+    const h1 = page.locator('h1').first();
+    const text = await h1.textContent();
+    expect(text, 'h1 text content').toBeTruthy();
+    expect(text).toContain('Catch the crash');
+    expect(text).toContain('before');
+    expect(text).toContain('it catches you');
+  });
 
-    // Privacy promise verbatim.
-    await expect(page.getByText(PRIVACY_PROMISE)).toBeVisible();
+  test('banner with "Early access is open" is visible', async ({ page }) => {
+    await page.goto('/');
 
-    // "Open dashboard" link → /dashboard
-    const openDashboard = page.getByRole('link', { name: /open dashboard/i });
-    await expect(openDashboard).toBeVisible();
-    const openHref = await openDashboard.getAttribute('href');
-    expect(openHref).toContain('/dashboard');
+    const banner = page.locator('text=/Early access is open/i').first();
+    await expect(banner).toBeVisible();
+  });
 
-    // "Try recorded session" link → /dashboard?source=recorded
-    const tryRecorded = page.getByRole('link', { name: /try recorded session/i });
-    await expect(tryRecorded).toBeVisible();
-    const recordedHref = await tryRecorded.getAttribute('href');
-    expect(recordedHref).toContain('/dashboard?source=recorded');
+  test('"Begin →" link exists and navigates to /dashboard?source=recorded', async ({
+    page,
+  }) => {
+    await page.goto('/');
+
+    // Find the "Begin →" anchor — the only live product-entry CTA on the page
+    const beginLink = page
+      .locator('a')
+      .filter({ hasText: /Begin\s*→/ })
+      .first();
+
+    await expect(beginLink).toBeVisible();
+
+    const href = await beginLink.getAttribute('href');
+    expect(href, '"Begin →" href').toBeTruthy();
+    expect(
+      href!.endsWith('/dashboard?source=recorded'),
+      `"Begin →" href "${href}" should end with /dashboard?source=recorded`,
+    ).toBe(true);
+
+    // Click and confirm navigation
+    await beginLink.click();
+    await page.waitForURL((url) => {
+      const search = url.searchParams;
+      return search.get('source') === 'recorded' && url.pathname === '/dashboard';
+    });
   });
 });

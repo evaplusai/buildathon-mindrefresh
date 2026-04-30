@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 
-export default function Landing() {
+export default function AppEntry() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-6 py-16 bg-surface-900 text-slate-100">
       <section className="max-w-2xl w-full text-center space-y-8">
