@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MindRefresh — Today</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400;1,8..60,500&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green-50: #EAF3DE;
+    --green-100: #C0DD97;
+    --green-200: #97C459;
+    --green-300: #7FB13C;
+    --green-400: #639922;
+    --green-500: #4F8418;
+    --green-600: #3B6D11;
+    --green-700: #2F5A0D;
+    --green-800: #27500A;
+    --green-900: #173404;
+    --cream: #FBF9F2;
+    --cream-2: #F5F1E4;
+    --warm-white: #FFFEFA;
+    --ink: #1A2310;
+    --ink-soft: #3D4A2E;
+    --ink-muted: #6B7558;
+    --rose: #C97A6B;
+    --amber: #C99B4F;
+    --line: rgba(39, 80, 10, 0.12);
+    --line-soft: rgba(39, 80, 10, 0.06);
+    --serif: "Source Serif 4", Georgia, "Iowan Old Style", serif;
+    --sans: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+
+    --state-steady: #639922;
+    --state-shifting: #C99B4F;
+    --state-overloaded: #C97A6B;
+    --state-drained: #6B7558;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--cream); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; line-height: 1.6; font-size: 16px; }
+  a { color: inherit; text-decoration: none; }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; }
+  img, svg { display: block; max-width: 100%; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 0 32px; }
+
+  /* NAV */
+  nav {
+    padding: 18px 0; border-bottom: 0.5px solid var(--line-soft);
+    background: rgba(255, 255, 255, 0.94); backdrop-filter: blur(12px);
+    position: sticky; top: 0; z-index: 50;
+  }
+  .nav-inner { display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+  .logo { display: flex; align-items: center; gap: 10px; font-family: var(--serif); font-size: 22px; color: var(--green-900); letter-spacing: -0.4px; font-weight: 500; }
+  .logo-mark { width: 28px; height: 28px; }
+  .nav-tabs { display: flex; gap: 4px; }
+  .nav-tab { font-size: 14px; color: var(--ink-soft); font-weight: 500; padding: 8px 16px; border-radius: 999px; transition: all 0.2s; }
+  .nav-tab.active { background: var(--green-50); color: var(--green-900); }
+  .nav-tab:hover:not(.active) { color: var(--green-800); }
+  .nav-right { display: flex; align-items: center; gap: 14px; }
+
+  .demo-toggle {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 14px 7px 11px;
+    background: var(--ink); color: var(--cream);
+    border-radius: 999px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1.2px; font-weight: 600;
+    transition: all 0.2s; cursor: pointer;
+  }
+  .demo-toggle:hover { background: #2a3322; }
+  .demo-toggle.active { background: var(--green-800); }
+  .demo-toggle .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green-300); transition: background 0.2s;
+  }
+  .demo-toggle.active .dot { background: var(--green-100); animation: pulse 2.4s ease-in-out infinite; }
+
+  .avatar-pill {
+    display: flex; align-items: center; gap: 10px;
+    padding: 4px 14px 4px 4px;
+    border: 0.5px solid var(--line); border-radius: 999px; background: var(--warm-white);
+    font-size: 13px; font-weight: 500; color: var(--ink-soft);
+  }
+  .avatar-pill .av {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: linear-gradient(135deg, #C0DD97, #639922);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; color: var(--green-900); font-size: 12px;
+  }
+
+  /* HEADER */
+  .page-header { padding: 48px 0 24px; }
+  .greeting-row { display: flex; justify-content: space-between; align-items: flex-end; gap: 32px; flex-wrap: wrap; margin-bottom: 12px; }
+  .greeting-eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 2px;
+    color: var(--green-700); margin-bottom: 12px; text-transform: uppercase;
+  }
+  .greeting-eyebrow .live-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green-400); animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.4); }
+  }
+  h1 {
+    font-family: var(--serif); font-size: 52px; line-height: 1.05;
+    letter-spacing: -1.4px; color: var(--green-900); font-weight: 500;
+    max-width: 800px;
+  }
+  h1 em { font-style: italic; color: var(--green-600); font-weight: 500; }
+  .header-meta {
+    display: flex; flex-direction: column; align-items: flex-end;
+    gap: 4px; font-size: 13px; color: var(--ink-muted);
+    font-family: var(--mono); letter-spacing: 0.5px;
+  }
+  .header-meta .meta-time { color: var(--green-900); font-weight: 600; font-size: 14px; }
+
+  /* MAIN GRID */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+
+  /* STATE DIAL */
+  .state-dial {
+    background: var(--warm-white); border: 0.5px solid var(--line);
+    border-radius: 22px; padding: 36px;
+    position: relative; overflow: hidden;
+    transition: all 0.6s ease;
+  }
+  .state-dial::before {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(circle at 70% 30%, rgba(99, 153, 34, 0.08), transparent 60%);
+    pointer-events: none; z-index: 0;
+    transition: background 1s ease;
+  }
+  .state-dial.state-shifting::before { background: radial-gradient(circle at 70% 30%, rgba(201, 155, 79, 0.12), transparent 60%); }
+  .state-dial.state-overloaded::before { background: radial-gradient(circle at 70% 30%, rgba(201, 122, 107, 0.15), transparent 60%); }
+  .state-dial.state-drained::before { background: radial-gradient(circle at 70% 30%, rgba(107, 117, 88, 0.12), transparent 60%); }
+  .sd-inner { position: relative; z-index: 1; }
+  .sd-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; }
+  .sd-label {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 1.8px;
+    color: var(--ink-muted); text-transform: uppercase; font-weight: 600;
+  }
+  .sd-window-pill {
+    display: none; align-items: center; gap: 8px;
+    padding: 8px 14px; background: var(--green-900); color: var(--cream);
+    border-radius: 999px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1px; font-weight: 600;
+  }
+  .sd-window-pill.visible { display: inline-flex; animation: slideIn 0.5s ease; }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+  .sd-grid { display: grid; grid-template-columns: 1fr 200px; gap: 36px; align-items: center; }
+  .sd-state-name {
+    font-family: var(--serif); font-size: 56px; line-height: 1;
+    letter-spacing: -2px; color: var(--green-900); font-weight: 500;
+    margin-bottom: 14px; transition: color 0.6s ease;
+  }
+  .state-shifting .sd-state-name { color: var(--state-shifting); }
+  .state-overloaded .sd-state-name { color: var(--state-overloaded); }
+  .state-drained .sd-state-name { color: var(--state-drained); }
+  .sd-state-desc { font-size: 16px; color: var(--ink-soft); line-height: 1.55; max-width: 420px; margin-bottom: 24px; }
+  .sd-ladder { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  .sd-rung {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 12px; border-radius: 8px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
+    color: var(--ink-muted); transition: all 0.5s ease;
+    text-transform: uppercase;
+  }
+  .sd-rung.active { background: var(--green-50); color: var(--green-900); font-weight: 600; }
+  .state-shifting .sd-rung.active { background: rgba(201, 155, 79, 0.14); color: var(--state-shifting); }
+  .state-overloaded .sd-rung.active { background: rgba(201, 122, 107, 0.14); color: var(--state-overloaded); }
+  .state-drained .sd-rung.active { background: rgba(107, 117, 88, 0.14); color: var(--state-drained); }
+  .sd-rung-bullet {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: rgba(39, 80, 10, 0.18); flex-shrink: 0; transition: all 0.4s ease;
+  }
+  .sd-rung.active .sd-rung-bullet { background: var(--green-500); box-shadow: 0 0 0 4px rgba(99, 153, 34, 0.18); }
+  .state-shifting .sd-rung.active .sd-rung-bullet { background: var(--state-shifting); box-shadow: 0 0 0 4px rgba(201, 155, 79, 0.22); }
+  .state-overloaded .sd-rung.active .sd-rung-bullet { background: var(--state-overloaded); box-shadow: 0 0 0 4px rgba(201, 122, 107, 0.22); }
+  .state-drained .sd-rung.active .sd-rung-bullet { background: var(--state-drained); box-shadow: 0 0 0 4px rgba(107, 117, 88, 0.22); }
+  .sd-visual { width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; margin-left: auto; }
+  .sd-visual svg { width: 100%; height: 100%; overflow: visible; }
+  .ring { fill: none; stroke-width: 1.5; transform-origin: 100px 100px; }
+  .ring-1 { stroke: var(--green-300); animation: rotate 32s linear infinite; }
+  .ring-2 { stroke: var(--green-400); animation: rotate 22s linear infinite reverse; }
+  .ring-3 { stroke: var(--green-600); animation: rotate 16s linear infinite; }
+  .ring-core { fill: var(--green-800); transform-origin: 100px 100px; animation: breathe 5s ease-in-out infinite; }
+  .state-shifting .ring-1, .state-shifting .ring-2, .state-shifting .ring-3 { stroke: var(--state-shifting); animation-duration: 24s; }
+  .state-shifting .ring-core { fill: var(--state-shifting); animation-duration: 4s; }
+  .state-overloaded .ring-1, .state-overloaded .ring-2, .state-overloaded .ring-3 { stroke: var(--state-overloaded); animation-duration: 14s; }
+  .state-overloaded .ring-core { fill: var(--state-overloaded); animation-duration: 2.4s; }
+  .state-drained .ring-1, .state-drained .ring-2, .state-drained .ring-3 { stroke: var(--state-drained); animation-duration: 48s; }
+  .state-drained .ring-core { fill: var(--state-drained); animation-duration: 8s; }
+  @keyframes rotate { to { transform: rotate(360deg); } }
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); opacity: 0.9; }
+    50% { transform: scale(1.18); opacity: 1; }
+  }
+
+  /* SIGNALS */
+  .signals {
+    background: var(--green-900); color: var(--green-50);
+    border-radius: 22px; padding: 28px 32px;
+    display: flex; flex-direction: column; gap: 18px;
+    position: relative; overflow: hidden;
+  }
+  .signals::before {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(circle at 100% 0%, rgba(192, 221, 151, 0.08), transparent 50%);
+    pointer-events: none;
+  }
+  .sig-header { display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 1; }
+  .sig-label {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 1.8px;
+    color: rgba(234, 243, 222, 0.55); text-transform: uppercase; font-weight: 600;
+  }
+  .sig-live {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 10px; letter-spacing: 1px;
+    color: var(--green-100); font-weight: 600;
+  }
+  .sig-live .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green-200); animation: pulse 2s ease-in-out infinite; }
+  .signal-row {
+    display: grid; grid-template-columns: 110px 1fr auto;
+    gap: 16px; align-items: center;
+    padding: 12px 0;
+    border-bottom: 0.5px solid rgba(234, 243, 222, 0.1);
+    position: relative; z-index: 1;
+  }
+  .signal-row:last-child { border-bottom: none; }
+  .sig-name { font-family: var(--serif); font-size: 14px; color: var(--cream); font-weight: 500; }
+  .sig-name-sub {
+    display: block; font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.8px; color: rgba(234, 243, 222, 0.5);
+    text-transform: uppercase; margin-top: 2px;
+  }
+  .sig-bar { height: 6px; background: rgba(234, 243, 222, 0.1); border-radius: 3px; overflow: hidden; }
+  .sig-bar-fill {
+    height: 100%; background: var(--green-200); border-radius: 3px;
+    transition: width 1.4s cubic-bezier(0.22, 1, 0.36, 1), background 0.6s ease;
+  }
+  .signals.state-shifting .sig-bar-fill { background: var(--state-shifting); }
+  .signals.state-overloaded .sig-bar-fill { background: var(--state-overloaded); }
+  .signals.state-drained .sig-bar-fill { background: var(--state-drained); }
+  .sig-value {
+    font-family: var(--mono); font-size: 13px; color: var(--green-100);
+    font-weight: 600; min-width: 50px; text-align: right;
+    transition: color 0.6s ease;
+  }
+
+  /* ─────────── REFLECT CARD (the new agentic feature) ─────────── */
+  .reflect-card {
+    background: var(--warm-white);
+    border: 0.5px solid var(--line);
+    border-radius: 22px;
+    padding: 36px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .reflect-card::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: linear-gradient(to bottom, var(--green-600), var(--green-300));
+  }
+  .rfc-header { margin-bottom: 24px; }
+  .rfc-eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 2px;
+    color: var(--green-700); text-transform: uppercase; font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .rfc-eyebrow-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green-400);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  .rfc-title {
+    font-family: var(--serif); font-size: 28px; line-height: 1.2;
+    color: var(--green-900); font-weight: 500; letter-spacing: -0.4px;
+    margin-bottom: 8px;
+  }
+  .rfc-title em { font-style: italic; color: var(--green-600); }
+  .rfc-sub { font-size: 15px; color: var(--ink-soft); line-height: 1.55; max-width: 580px; }
+
+  /* Input area */
+  .rfc-input-wrap {
+    display: flex; gap: 12px; margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .rfc-input {
+    flex: 1; min-width: 320px;
+    background: var(--cream-2); border: 0.5px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 20px;
+    font-family: var(--serif); font-size: 17px; color: var(--green-900);
+    line-height: 1.5; resize: none;
+    transition: all 0.2s;
+    min-height: 64px;
+  }
+  .rfc-input::placeholder { color: var(--ink-muted); font-style: italic; }
+  .rfc-input:focus {
+    outline: none;
+    border-color: var(--green-600);
+    background: var(--warm-white);
+    box-shadow: 0 0 0 3px rgba(99, 153, 34, 0.12);
+  }
+  .rfc-submit {
+    align-self: flex-end;
+    background: var(--green-800); color: var(--cream);
+    padding: 16px 24px;
+    border-radius: 14px;
+    font-size: 15px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 8px;
+    box-shadow: 0 8px 20px -8px rgba(23, 52, 4, 0.4);
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .rfc-submit:hover { background: var(--green-900); transform: translateY(-1px); }
+  .rfc-submit:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+  /* Sample prompt chips */
+  .rfc-samples {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+  .rfc-sample-label {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px;
+    color: var(--ink-muted); text-transform: uppercase; font-weight: 600;
+    align-self: center; margin-right: 4px;
+  }
+  .rfc-sample {
+    background: var(--cream-2); border: 0.5px solid var(--line);
+    color: var(--ink-soft);
+    padding: 8px 14px; border-radius: 999px;
+    font-size: 13px; font-family: var(--serif); font-style: italic;
+    transition: all 0.2s;
+  }
+  .rfc-sample:hover {
+    border-color: var(--green-600); color: var(--green-900);
+    background: var(--green-50);
+  }
+
+  /* ─────── Agent swarm visualization ─────── */
+  .swarm {
+    display: none;
+    margin-top: 28px;
+    padding-top: 28px;
+    border-top: 0.5px dashed var(--line);
+  }
+  .swarm.visible { display: block; animation: cardEnter 0.5s ease; }
+  @keyframes cardEnter {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .swarm-label {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 1.8px;
+    color: var(--ink-muted); text-transform: uppercase; font-weight: 600;
+    margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .swarm-label-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green-400); animation: pulse 1.4s ease-in-out infinite;
+  }
+  .agents-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+    margin-bottom: 20px;
+  }
+  .agent-card {
+    background: var(--cream-2);
+    border: 0.5px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 18px 16px;
+    position: relative;
+    min-height: 132px;
+    transition: all 0.4s ease;
+  }
+  .agent-card.thinking { border-color: var(--green-400); background: var(--warm-white); }
+  .agent-card.done { border-color: var(--green-600); background: var(--warm-white); }
+
+  .agent-head {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 12px;
+  }
+  .agent-icon {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: var(--green-50);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--green-700);
+    flex-shrink: 0;
+    transition: all 0.4s ease;
+  }
+  .agent-card.thinking .agent-icon {
+    background: var(--green-600); color: var(--cream);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  .agent-card.done .agent-icon {
+    background: var(--green-800); color: var(--cream);
+  }
+  .agent-icon svg { width: 14px; height: 14px; }
+
+  .agent-name {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
+    color: var(--green-900); text-transform: uppercase; font-weight: 700;
+  }
+  .agent-status {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 1px;
+    color: var(--ink-muted); text-transform: uppercase;
+    margin-top: 1px;
+  }
+  .agent-card.thinking .agent-status { color: var(--green-600); }
+  .agent-card.done .agent-status { color: var(--green-700); }
+
+  .agent-body {
+    font-size: 13px; line-height: 1.5; color: var(--ink-soft);
+  }
+  .agent-body strong { color: var(--green-900); font-weight: 600; }
+
+  /* Pattern chips inside agent 1 */
+  .pattern-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .pattern-chip {
+    background: var(--green-50); color: var(--green-900);
+    padding: 4px 10px; border-radius: 999px;
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.5px;
+    font-weight: 600;
+  }
+  .pattern-chip.high { background: rgba(201, 122, 107, 0.16); color: var(--state-overloaded); }
+  .pattern-chip.med { background: rgba(201, 155, 79, 0.18); color: var(--state-shifting); }
+
+  /* Loading dots animation */
+  .agent-loading {
+    display: inline-flex; gap: 4px;
+  }
+  .agent-loading span {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--green-400);
+    animation: dotPulse 1.2s ease-in-out infinite;
+  }
+  .agent-loading span:nth-child(2) { animation-delay: 0.2s; }
+  .agent-loading span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes dotPulse {
+    0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
+    30% { opacity: 1; transform: scale(1.1); }
+  }
+
+  /* Reverse affirmation output */
+  .affirmation {
+    display: none;
+    background: var(--green-900);
+    color: var(--cream);
+    padding: 28px 32px;
+    border-radius: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .affirmation.visible { display: block; animation: cardEnter 0.6s ease; }
+  .affirmation::before {
+    content: ""; position: absolute;
+    top: 16px; left: 24px;
+    font-family: var(--serif); font-size: 60px;
+    color: var(--green-200);
+    opacity: 0.3;
+    line-height: 1;
+  }
+  .aff-eyebrow {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 1.8px;
+    color: var(--green-200); text-transform: uppercase; font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .aff-text {
+    font-family: var(--serif); font-size: 22px; line-height: 1.45;
+    color: var(--cream); font-weight: 400; letter-spacing: -0.3px;
+    max-width: 640px;
+  }
+  .aff-text em { font-style: italic; color: var(--green-100); }
+  .aff-meta {
+    margin-top: 18px;
+    font-family: var(--mono); font-size: 10px; letter-spacing: 1px;
+    color: rgba(234, 243, 222, 0.55); text-transform: uppercase;
+  }
+
+  /* RESET CARD */
+  .reset-card {
+    background: var(--warm-white); border: 0.5px solid var(--line);
+    border-radius: 22px; padding: 32px 36px; margin-bottom: 24px;
+    display: none; position: relative; overflow: hidden;
+  }
+  .reset-card.visible { display: block; animation: cardEnter 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
+  .reset-card::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: var(--state-overloaded);
+    transition: background 0.6s ease;
+  }
+  .reset-card.for-shifting::before { background: var(--state-shifting); }
+  .reset-card.for-drained::before { background: var(--state-drained); }
+  .rc-grid { display: grid; grid-template-columns: 1fr auto; gap: 32px; align-items: center; }
+  .rc-tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px;
+    color: var(--state-overloaded); text-transform: uppercase; font-weight: 700;
+    margin-bottom: 12px;
+  }
+  .reset-card.for-shifting .rc-tag { color: var(--state-shifting); }
+  .reset-card.for-drained .rc-tag { color: var(--state-drained); }
+  .rc-title {
+    font-family: var(--serif); font-size: 26px; line-height: 1.2;
+    color: var(--green-900); font-weight: 500; letter-spacing: -0.4px;
+    margin-bottom: 8px; max-width: 580px;
+  }
+  .rc-title em { font-style: italic; color: var(--green-600); }
+  .rc-protocol { font-size: 14px; color: var(--ink-soft); line-height: 1.6; max-width: 580px; }
+  .rc-protocol strong { color: var(--green-900); font-weight: 600; }
+  .rc-cta {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--green-800); color: var(--cream);
+    padding: 16px 28px; border-radius: 999px;
+    font-size: 15px; font-weight: 600;
+    box-shadow: 0 8px 20px -8px rgba(23, 52, 4, 0.4);
+    transition: all 0.2s;
+  }
+  .rc-cta:hover { background: var(--green-900); transform: translateY(-1px); }
+
+  /* MODAL (breathing reset) */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(15, 26, 4, 0.92); backdrop-filter: blur(20px);
+    display: none; align-items: center; justify-content: center;
+    z-index: 100; animation: backdropIn 0.5s ease;
+  }
+  .modal-backdrop.visible { display: flex; }
+  @keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+  .breath-modal { text-align: center; color: var(--cream); max-width: 520px; padding: 0 32px; }
+  .bm-eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 2px;
+    color: var(--green-200); margin-bottom: 16px;
+  }
+  .bm-instruction {
+    font-family: var(--serif); font-size: 36px; line-height: 1.15;
+    font-weight: 500; letter-spacing: -0.6px;
+    color: var(--cream); margin-bottom: 56px;
+    min-height: 50px; transition: opacity 0.4s ease;
+  }
+  .bm-instruction em { color: var(--green-100); font-style: italic; }
+  .breath-orb-wrap { position: relative; width: 280px; height: 280px; margin: 0 auto 48px; }
+  .breath-orb {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: radial-gradient(circle, var(--green-300), var(--green-700));
+    box-shadow: 0 0 80px rgba(127, 177, 60, 0.4), 0 0 160px rgba(127, 177, 60, 0.2), inset 0 0 40px rgba(255, 255, 255, 0.15);
+    transform: scale(0.55);
+    transition: transform 4s cubic-bezier(0.45, 0, 0.55, 1);
+  }
+  .breath-orb.inhale { transform: scale(1); }
+  .breath-orb.hold { transform: scale(1); transition: transform 2s ease; }
+  .breath-orb.exhale { transform: scale(0.55); transition: transform 6s cubic-bezier(0.45, 0, 0.55, 1); }
+  .breath-orb-glow {
+    position: absolute; inset: -20%; border-radius: 50%;
+    border: 0.5px solid rgba(192, 221, 151, 0.2);
+    animation: orbPulse 5s ease-in-out infinite;
+  }
+  @keyframes orbPulse {
+    0%, 100% { opacity: 0.3; transform: scale(0.95); }
+    50% { opacity: 0.6; transform: scale(1.05); }
+  }
+  .bm-progress { display: flex; gap: 8px; justify-content: center; margin-bottom: 24px; }
+  .bm-prog-dot {
+    width: 28px; height: 4px; border-radius: 99px;
+    background: rgba(251, 249, 242, 0.18);
+    transition: background 0.4s ease;
+  }
+  .bm-prog-dot.complete { background: var(--green-200); }
+  .bm-prog-dot.active { background: var(--cream); }
+  .bm-meta {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1.5px;
+    color: rgba(251, 249, 242, 0.55); text-transform: uppercase;
+  }
+  .bm-close {
+    position: absolute; top: 32px; right: 32px;
+    color: rgba(251, 249, 242, 0.55);
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 10px 18px; border-radius: 999px;
+    border: 0.5px solid rgba(251, 249, 242, 0.2);
+    transition: all 0.2s;
+  }
+  .bm-close:hover { color: var(--cream); border-color: var(--cream); }
+  .bm-complete { display: none; text-align: center; }
+  .bm-complete.visible { display: block; animation: cardEnter 0.6s ease; }
+  .bm-complete-mark {
+    width: 80px; height: 80px;
+    border: 1px solid var(--green-200); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 24px; color: var(--green-100); font-size: 36px;
+  }
+
+  /* PATTERN MIRROR */
+  .pattern-mirror {
+    background: var(--cream-2); border: 0.5px solid var(--line);
+    border-radius: 22px; padding: 36px; margin-bottom: 24px;
+  }
+  .pm-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+  .pm-eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 2px;
+    color: var(--green-700); text-transform: uppercase; font-weight: 600;
+  }
+  .pm-title {
+    font-family: var(--serif); font-size: 28px; line-height: 1.2;
+    color: var(--green-900); font-weight: 500; letter-spacing: -0.4px;
+    margin-top: 6px;
+  }
+  .pm-title em { font-style: italic; color: var(--green-600); }
+  .pm-meta { font-family: var(--mono); font-size: 11px; color: var(--ink-muted); letter-spacing: 0.5px; }
+  .pm-list { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .pm-item {
+    background: var(--warm-white); border: 0.5px solid var(--line);
+    border-radius: 14px; padding: 24px 26px;
+    position: relative; transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .pm-item:hover { transform: translateY(-2px); box-shadow: 0 12px 24px -16px rgba(23, 52, 4, 0.15); }
+  .pm-icon {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--green-50);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 14px; color: var(--green-700);
+  }
+  .pm-icon svg { width: 18px; height: 18px; }
+  .pm-text {
+    font-family: var(--serif); font-size: 17px; line-height: 1.4;
+    color: var(--green-900); font-weight: 400; letter-spacing: -0.1px;
+    margin-bottom: 10px;
+  }
+  .pm-text em { font-style: italic; color: var(--green-600); }
+  .pm-evidence {
+    font-size: 12px; color: var(--ink-muted); line-height: 1.5;
+    font-family: var(--mono); letter-spacing: 0.3px;
+  }
+
+  /* TODAY STRIP */
+  .today-strip {
+    background: var(--warm-white); border: 0.5px solid var(--line);
+    border-radius: 22px; padding: 32px 36px;
+  }
+  .ts-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 28px; }
+  .ts-title { font-family: var(--serif); font-size: 22px; color: var(--green-900); font-weight: 500; letter-spacing: -0.3px; }
+  .ts-title em { font-style: italic; color: var(--green-600); }
+  .ts-legend {
+    display: flex; gap: 18px; font-family: var(--mono);
+    font-size: 10px; letter-spacing: 1px; color: var(--ink-muted);
+    text-transform: uppercase;
+  }
+  .ts-legend-item { display: flex; align-items: center; gap: 6px; }
+  .ts-legend-bullet { width: 8px; height: 8px; border-radius: 50%; }
+  .ts-track { position: relative; height: 80px; background: var(--cream-2); border-radius: 12px; overflow: hidden; margin-bottom: 14px; }
+  .ts-segment { position: absolute; top: 0; bottom: 0; transition: opacity 0.3s; }
+  .ts-segment:hover { opacity: 0.8; }
+  .ts-marker { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--green-900); z-index: 2; }
+  .ts-marker::before {
+    content: ""; position: absolute; top: -4px; left: -4px;
+    width: 10px; height: 10px; background: var(--green-900); border-radius: 50%;
+  }
+  .ts-marker::after {
+    content: "NOW"; position: absolute;
+    top: -22px; left: 50%; transform: translateX(-50%);
+    font-family: var(--mono); font-size: 9px; letter-spacing: 1px;
+    color: var(--green-900); font-weight: 700;
+  }
+  .ts-reset-marker {
+    position: absolute;
+    top: 50%; transform: translate(-50%, -50%);
+    width: 22px; height: 22px;
+    background: var(--cream); border: 1.5px solid var(--green-800);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--green-800); font-size: 12px; font-weight: 700;
+    z-index: 3;
+  }
+  .ts-axis {
+    display: flex; justify-content: space-between;
+    font-family: var(--mono); font-size: 10px; color: var(--ink-muted);
+    letter-spacing: 0.8px; padding: 0 4px;
+  }
+  .ts-summary {
+    margin-top: 24px; padding-top: 24px;
+    border-top: 0.5px solid var(--line);
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px;
+  }
+  .ts-stat-num {
+    font-family: var(--serif); font-size: 28px; font-weight: 500;
+    color: var(--green-900); letter-spacing: -0.4px; line-height: 1;
+    margin-bottom: 6px;
+  }
+  .ts-stat-num em { font-style: italic; color: var(--green-600); }
+  .ts-stat-label { font-size: 12px; color: var(--ink-muted); line-height: 1.4; }
+
+  .footer-note {
+    text-align: center;
+    padding: 48px 0 64px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1.2px;
+    color: var(--ink-muted); text-transform: uppercase;
+  }
+  .footer-note .lock { display: inline-block; margin-right: 6px; }
+
+  @media (max-width: 960px) {
+    .main-grid { grid-template-columns: 1fr; }
+    .pm-list { grid-template-columns: 1fr; }
+    .ts-summary { grid-template-columns: repeat(2, 1fr); }
+    .agents-grid { grid-template-columns: 1fr; }
+    h1 { font-size: 36px; }
+    .sd-state-name { font-size: 42px; }
+    .sd-grid { grid-template-columns: 1fr; }
+    .sd-visual { margin: 0 auto; }
+    .nav-tabs { display: none; }
+    .rc-grid { grid-template-columns: 1fr; }
+    .breath-orb-wrap { width: 220px; height: 220px; }
+    .bm-instruction { font-size: 26px; }
+    .rfc-input { min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="wrap nav-inner">
+    <div class="logo">
+      <svg class="logo-mark" viewBox="0 0 32 32" fill="none">
+        <circle cx="16" cy="16" r="14" stroke="#27500A" stroke-width="1.2"/>
+        <circle cx="16" cy="16" r="9" stroke="#27500A" stroke-width="1" opacity="0.5"/>
+        <circle cx="16" cy="16" r="3.5" fill="#27500A"/>
+      </svg>
+      MindRefresh
+    </div>
+    <div class="nav-tabs">
+      <a class="nav-tab active">Today</a>
+      <a class="nav-tab">Patterns</a>
+      <a class="nav-tab">History</a>
+      <a class="nav-tab">Sensor</a>
+    </div>
+    <div class="nav-right">
+      <button class="demo-toggle" id="demoToggle">
+        <span class="dot"></span>
+        <span id="demoLabel">DEMO MODE</span>
+      </button>
+      <div class="avatar-pill">
+        <div class="av">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        Your system
+      </div>
+    </div>
+  </div>
+</nav>
+
+<header class="page-header">
+  <div class="wrap">
+    <div class="greeting-row">
+      <div>
+        <div class="greeting-eyebrow">
+          <span class="live-dot"></span>
+          <span id="sensorStatus">Sensor reading · living room</span>
+        </div>
+        <h1 id="greeting">Good afternoon. Your system is <em>steady</em>.</h1>
+      </div>
+      <div class="header-meta">
+        <div class="meta-time" id="metaTime">Tuesday · 2:38 PM</div>
+        <div>Day 12 of early access</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- STATE DIAL + SIGNALS -->
+  <div class="main-grid">
+    <div class="state-dial" id="stateDial">
+      <div class="sd-inner">
+        <div class="sd-top">
+          <div class="sd-label">Current state · live</div>
+          <div class="sd-window-pill" id="windowPill">
+            <span class="arrow">↗</span>
+            <span id="windowText">Caught 8 min before peak</span>
+          </div>
+        </div>
+        <div class="sd-grid">
+          <div>
+            <div class="sd-state-name" id="stateName">Steady</div>
+            <p class="sd-state-desc" id="stateDesc">Balanced rhythm. Breath even, posture mobile, recovery tracking on time. The sensor is watching for the first sign of a shift.</p>
+            <div class="sd-ladder">
+              <div class="sd-rung" data-rung="steady"><span class="sd-rung-bullet"></span><span>Steady</span></div>
+              <div class="sd-rung" data-rung="shifting"><span class="sd-rung-bullet"></span><span>Shifting</span></div>
+              <div class="sd-rung" data-rung="overloaded"><span class="sd-rung-bullet"></span><span>Overloaded</span></div>
+              <div class="sd-rung" data-rung="drained"><span class="sd-rung-bullet"></span><span>Drained</span></div>
+            </div>
+          </div>
+          <div class="sd-visual" aria-hidden="true">
+            <svg viewBox="0 0 200 200">
+              <circle class="ring ring-1" cx="100" cy="100" r="86" stroke-dasharray="2 6"/>
+              <circle class="ring ring-2" cx="100" cy="100" r="64" stroke-dasharray="3 4"/>
+              <circle class="ring ring-3" cx="100" cy="100" r="42" stroke-dasharray="1 3"/>
+              <circle class="ring-core" cx="100" cy="100" r="14"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="signals" id="signals">
+      <div class="sig-header">
+        <div class="sig-label">Live signals</div>
+        <div class="sig-live"><span class="dot"></span> 4Hz · LOCAL</div>
+      </div>
+      <div class="signal-row">
+        <div><div class="sig-name">Breath rate</div><div class="sig-name-sub">leading signal</div></div>
+        <div class="sig-bar"><div class="sig-bar-fill" id="barBreath" style="width: 35%;"></div></div>
+        <div class="sig-value" id="valBreath">14 brpm</div>
+      </div>
+      <div class="signal-row">
+        <div><div class="sig-name">Cardiac micro-motion</div><div class="sig-name-sub">contactless ballistocardiogram</div></div>
+        <div class="sig-bar"><div class="sig-bar-fill" id="barCardiac" style="width: 32%;"></div></div>
+        <div class="sig-value" id="valCardiac">62 bpm</div>
+      </div>
+      <div class="signal-row">
+        <div><div class="sig-name">Postural stillness</div><div class="sig-name-sub">freeze indicator</div></div>
+        <div class="sig-bar"><div class="sig-bar-fill" id="barStillness" style="width: 28%;"></div></div>
+        <div class="sig-value" id="valStillness">Low</div>
+      </div>
+      <div class="signal-row">
+        <div><div class="sig-name">Movement cadence</div><div class="sig-name-sub">activity rhythm</div></div>
+        <div class="sig-bar"><div class="sig-bar-fill" id="barMovement" style="width: 58%;"></div></div>
+        <div class="sig-value" id="valMovement">Even</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- REFLECT CARD — agentic interactive demo             -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <section class="reflect-card">
+    <div class="rfc-header">
+      <div class="rfc-eyebrow">
+        <span class="rfc-eyebrow-dot"></span>
+        Reflect · agent swarm
+      </div>
+      <h2 class="rfc-title">Type how you feel. <em>Watch your body show up.</em></h2>
+      <p class="rfc-sub">Three agents read your language for nervous-system signals, map the pattern to a state, and write a reflective reframe — all in under five seconds, all running locally.</p>
+    </div>
+
+    <div class="rfc-input-wrap">
+      <textarea class="rfc-input" id="rfcInput" placeholder="What's on your mind right now?" rows="2"></textarea>
+      <button class="rfc-submit" id="rfcSubmit">
+        Reflect
+        <span>→</span>
+      </button>
+    </div>
+
+    <div class="rfc-samples">
+      <span class="rfc-sample-label">TRY</span>
+      <button class="rfc-sample" data-sample="I'm so behind on everything. I can't catch up.">"I'm so behind on everything"</button>
+      <button class="rfc-sample" data-sample="Everything is fine. I'm just tired, that's all.">"Everything is fine, just tired"</button>
+      <button class="rfc-sample" data-sample="I keep replaying the meeting. I should have said something different.">"I keep replaying the meeting"</button>
+      <button class="rfc-sample" data-sample="I have so much to do and I don't know where to start. My head is spinning.">"So much to do, head spinning"</button>
+    </div>
+
+    <!-- The swarm -->
+    <div class="swarm" id="swarm">
+      <div class="swarm-label">
+        <span class="swarm-label-dot"></span>
+        SWARM RUNNING · 3 AGENTS IN PARALLEL
+      </div>
+
+      <div class="agents-grid">
+        <!-- Agent 1: pattern scorer -->
+        <div class="agent-card" id="agent1">
+          <div class="agent-head">
+            <div class="agent-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12h4l3-9 4 18 3-9h4"/>
+              </svg>
+            </div>
+            <div>
+              <div class="agent-name">Pattern Scorer</div>
+              <div class="agent-status" id="status1">Idle</div>
+            </div>
+          </div>
+          <div class="agent-body" id="body1">
+            <span style="color: var(--ink-muted);">Awaiting input. Reads language for urgency, catastrophizing, rumination, exhaustion.</span>
+          </div>
+        </div>
+
+        <!-- Agent 2: state mapper -->
+        <div class="agent-card" id="agent2">
+          <div class="agent-head">
+            <div class="agent-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 6v6l4 2"/>
+              </svg>
+            </div>
+            <div>
+              <div class="agent-name">State Mapper</div>
+              <div class="agent-status" id="status2">Idle</div>
+            </div>
+          </div>
+          <div class="agent-body" id="body2">
+            <span style="color: var(--ink-muted);">Fuses linguistic patterns with sensor signals. Picks one of four states.</span>
+          </div>
+        </div>
+
+        <!-- Agent 3: reverse affirmation writer -->
+        <div class="agent-card" id="agent3">
+          <div class="agent-head">
+            <div class="agent-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+              </svg>
+            </div>
+            <div>
+              <div class="agent-name">Reverse Affirmation</div>
+              <div class="agent-status" id="status3">Idle</div>
+            </div>
+          </div>
+          <div class="agent-body" id="body3">
+            <span style="color: var(--ink-muted);">Writes a reflective reframe — observation, not positivity.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="affirmation" id="affirmation">
+        <div class="aff-eyebrow">REVERSE AFFIRMATION · WHAT YOUR LANGUAGE IS SAYING</div>
+        <p class="aff-text" id="affText"></p>
+        <div class="aff-meta" id="affMeta"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESET CARD -->
+  <div class="reset-card" id="resetCard">
+    <div class="rc-grid">
+      <div>
+        <div class="rc-tag" id="rcTag">⚠ Caught · 8 min before peak</div>
+        <h3 class="rc-title" id="rcTitle">Your breath shortened over the last four minutes. <em>Shoulders haven't moved.</em></h3>
+        <p class="rc-protocol" id="rcProtocol"><strong>Sixty-second physiological sigh.</strong> Two short inhales through the nose, one long exhale through the mouth. Five rounds.</p>
+      </div>
+      <button class="rc-cta" id="beginReset">Begin reset <span>→</span></button>
+    </div>
+  </div>
+
+  <!-- PATTERN MIRROR -->
+  <section class="pattern-mirror">
+    <div class="pm-header">
+      <div>
+        <div class="pm-eyebrow">Pattern mirror</div>
+        <h2 class="pm-title">What your last 12 days <em>are showing.</em></h2>
+      </div>
+      <div class="pm-meta">Updated this morning · 12 days observed</div>
+    </div>
+    <div class="pm-list">
+      <div class="pm-item">
+        <div class="pm-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></div>
+        <p class="pm-text">Your system tends to become <em>overloaded earlier</em> on days after sleep under 6.5 hours.</p>
+        <div class="pm-evidence">9 of 12 days · correlation strong</div>
+      </div>
+      <div class="pm-item">
+        <div class="pm-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></div>
+        <p class="pm-text">You return to steady <em>30% faster</em> after a walk than after scrolling.</p>
+        <div class="pm-evidence">Last 8 recovery windows compared</div>
+      </div>
+      <div class="pm-item">
+        <div class="pm-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg></div>
+        <p class="pm-text">Late-night screen sessions are <em>reducing next-day recovery</em> — most clearly on Thursdays and Sundays.</p>
+        <div class="pm-evidence">Pattern observed across 4 of last 4 weeks</div>
+      </div>
+      <div class="pm-item">
+        <div class="pm-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg></div>
+        <p class="pm-text">Your nervous system has been carrying <em>more load than usual</em> this week. Recovery windows are 18% shorter.</p>
+        <div class="pm-evidence">Compared to your 30-day baseline</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TODAY STRIP -->
+  <section class="today-strip">
+    <div class="ts-header">
+      <div class="ts-title">Today, so far. <em>How the day is unfolding.</em></div>
+      <div class="ts-legend">
+        <div class="ts-legend-item"><span class="ts-legend-bullet" style="background: var(--state-steady);"></span> Steady</div>
+        <div class="ts-legend-item"><span class="ts-legend-bullet" style="background: var(--state-shifting);"></span> Shifting</div>
+        <div class="ts-legend-item"><span class="ts-legend-bullet" style="background: var(--state-overloaded);"></span> Overloaded</div>
+        <div class="ts-legend-item"><span class="ts-legend-bullet" style="background: var(--state-drained);"></span> Drained</div>
+      </div>
+    </div>
+    <div class="ts-track" id="tsTrack">
+      <div class="ts-marker" id="tsMarker" style="left: 75%;"></div>
+    </div>
+    <div class="ts-axis">
+      <span>6 AM</span><span>9 AM</span><span>12 PM</span><span>3 PM</span><span>6 PM</span><span>9 PM</span>
+    </div>
+    <div class="ts-summary">
+      <div><div class="ts-stat-num"><em>2</em></div><div class="ts-stat-label">Shifts caught<br>before they crested</div></div>
+      <div><div class="ts-stat-num"><em>11</em><span style="font-size: 18px; color: var(--ink-soft);">min</span></div><div class="ts-stat-label">Average lead time<br>this week</div></div>
+      <div><div class="ts-stat-num"><em>4</em>:32</div><div class="ts-stat-label">Total time<br>in steady today</div></div>
+      <div><div class="ts-stat-num"><em>0</em></div><div class="ts-stat-label">Crashes<br>this week</div></div>
+    </div>
+  </section>
+
+</main>
+
+<div class="footer-note">
+  <span class="lock">🔒</span> Local processing · Raw signals never leave your sensor
+</div>
+
+<!-- BREATHING MODAL -->
+<div class="modal-backdrop" id="breathModal">
+  <button class="bm-close" id="closeModal">CLOSE</button>
+  <div class="breath-modal" id="breathContent">
+    <div class="bm-eyebrow">PHYSIOLOGICAL SIGH · 5 ROUNDS</div>
+    <div class="bm-instruction" id="bmInstruction">Get comfortable. Eyes soft.</div>
+    <div class="breath-orb-wrap">
+      <div class="breath-orb-glow"></div>
+      <div class="breath-orb" id="breathOrb"></div>
+    </div>
+    <div class="bm-progress" id="bmProgress">
+      <div class="bm-prog-dot"></div><div class="bm-prog-dot"></div><div class="bm-prog-dot"></div><div class="bm-prog-dot"></div><div class="bm-prog-dot"></div>
+    </div>
+    <div class="bm-meta" id="bmMeta">Round 1 of 5</div>
+  </div>
+  <div class="breath-modal bm-complete" id="breathComplete">
+    <div class="bm-complete-mark">✓</div>
+    <div class="bm-instruction">You're back in <em>the window.</em></div>
+    <p style="color: rgba(251, 249, 242, 0.7); font-size: 16px; line-height: 1.6; max-width: 400px; margin: 0 auto 32px;">Breath stabilized. Cardiac micro-motion easing. The sensor will keep watching quietly.</p>
+    <button class="bm-close" id="completeClose" style="position: static; display: inline-block;">RETURN TO TODAY</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  // ════════════ STATE DEFINITIONS ════════════
+  const STATES = {
+    steady: {
+      name: 'Steady',
+      desc: 'Balanced rhythm. Breath even, posture mobile, recovery tracking on time. The sensor is watching for the first sign of a shift.',
+      greeting: 'Good afternoon. Your system is <em>steady</em>.',
+      class: '',
+      signals: { breath: 35, cardiac: 32, stillness: 28, movement: 58 },
+      values: { breath: '14 brpm', cardiac: '62 bpm', stillness: 'Low', movement: 'Even' }
+    },
+    shifting: {
+      name: 'Shifting',
+      desc: 'Breath rate climbing. Postural stillness rising. The sensor caught a transition you haven\'t felt yet — there\'s an 8-minute window before it crests.',
+      greeting: 'Your system is <em>shifting</em>. Caught it early.',
+      class: 'state-shifting',
+      signals: { breath: 62, cardiac: 51, stillness: 71, movement: 22 },
+      values: { breath: '18 brpm', cardiac: '74 bpm', stillness: 'High', movement: 'Stalled' }
+    },
+    overloaded: {
+      name: 'Overloaded',
+      desc: 'Activation peaked. Breath shallow and rapid. This is the point most tools would notice — your sensor saw it eight minutes ago.',
+      greeting: 'Your body is <em>overloaded</em>.',
+      class: 'state-overloaded',
+      signals: { breath: 88, cardiac: 82, stillness: 92, movement: 14 },
+      values: { breath: '22 brpm', cardiac: '94 bpm', stillness: 'Frozen', movement: 'Locked' }
+    },
+    drained: {
+      name: 'Drained',
+      desc: 'Activation crashed below baseline. Movement cadence slow, breath flat. This is the after — the system asking for a different kind of rest.',
+      greeting: 'Your system is <em>drained</em>.',
+      class: 'state-drained',
+      signals: { breath: 18, cardiac: 22, stillness: 80, movement: 12 },
+      values: { breath: '11 brpm', cardiac: '58 bpm', stillness: 'Static', movement: 'Slow' }
+    }
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    dial: $('stateDial'), signals: $('signals'),
+    name: $('stateName'), desc: $('stateDesc'),
+    greeting: $('greeting'), metaTime: $('metaTime'), sensorStatus: $('sensorStatus'),
+    rungs: document.querySelectorAll('.sd-rung'),
+    barBreath: $('barBreath'), barCardiac: $('barCardiac'),
+    barStillness: $('barStillness'), barMovement: $('barMovement'),
+    valBreath: $('valBreath'), valCardiac: $('valCardiac'),
+    valStillness: $('valStillness'), valMovement: $('valMovement'),
+    windowPill: $('windowPill'), windowText: $('windowText'),
+    resetCard: $('resetCard'), rcTag: $('rcTag'),
+    rcTitle: $('rcTitle'), rcProtocol: $('rcProtocol'), beginReset: $('beginReset'),
+    demoToggle: $('demoToggle'), demoLabel: $('demoLabel'),
+    tsTrack: $('tsTrack'),
+  };
+
+  function renderState(stateKey) {
+    const state = STATES[stateKey];
+    if (!state) return;
+    els.dial.className = 'state-dial ' + state.class;
+    els.signals.className = 'signals ' + state.class;
+    els.name.textContent = state.name;
+    els.desc.textContent = state.desc;
+    els.greeting.innerHTML = state.greeting;
+    els.rungs.forEach((r) => r.classList.toggle('active', r.dataset.rung === stateKey));
+    els.barBreath.style.width = state.signals.breath + '%';
+    els.barCardiac.style.width = state.signals.cardiac + '%';
+    els.barStillness.style.width = state.signals.stillness + '%';
+    els.barMovement.style.width = state.signals.movement + '%';
+    els.valBreath.textContent = state.values.breath;
+    els.valCardiac.textContent = state.values.cardiac;
+    els.valStillness.textContent = state.values.stillness;
+    els.valMovement.textContent = state.values.movement;
+
+    if (stateKey === 'shifting') {
+      els.windowPill.classList.add('visible');
+      els.windowText.textContent = 'Caught 8 min before peak';
+    } else if (stateKey === 'overloaded') {
+      els.windowPill.classList.add('visible');
+      els.windowText.textContent = 'Peak detected · reset queued';
+    } else {
+      els.windowPill.classList.remove('visible');
+    }
+
+    if (stateKey === 'shifting') {
+      els.resetCard.className = 'reset-card visible for-shifting';
+      els.rcTag.innerHTML = '⚠ Caught · 8 min before peak';
+      els.rcTitle.innerHTML = 'Your breath shortened over the last four minutes. <em>Shoulders haven\'t moved.</em>';
+      els.rcProtocol.innerHTML = '<strong>Sixty-second physiological sigh.</strong> Two short inhales through the nose, one long exhale through the mouth. Five rounds.';
+    } else if (stateKey === 'overloaded') {
+      els.resetCard.className = 'reset-card visible';
+      els.rcTag.innerHTML = '⚠ Overloaded · reset ready';
+      els.rcTitle.innerHTML = 'Your nervous system is at peak activation. <em>Time to interrupt.</em>';
+      els.rcProtocol.innerHTML = '<strong>Sixty-second physiological sigh.</strong> The fastest evidence-based way to drop activation in under a minute.';
+    } else if (stateKey === 'drained') {
+      els.resetCard.className = 'reset-card visible for-drained';
+      els.rcTag.innerHTML = '◇ Drained · gentle re-engagement';
+      els.rcTitle.innerHTML = 'Your system has flattened. <em>It needs activation, not more rest.</em>';
+      els.rcProtocol.innerHTML = '<strong>Sixty-second box breath with movement.</strong> Equal-length inhale, hold, exhale, hold — paired with a slow stand and reach.';
+    } else {
+      els.resetCard.className = 'reset-card';
+    }
+  }
+
+  // ════════════ TODAY STRIP ════════════
+  function renderTodayStrip() {
+    const segments = [
+      { state: 'steady', start: 0, end: 18 },
+      { state: 'shifting', start: 18, end: 24 },
+      { state: 'steady', start: 24, end: 42 },
+      { state: 'shifting', start: 42, end: 50 },
+      { state: 'overloaded', start: 50, end: 56 },
+      { state: 'steady', start: 56, end: 75 },
+    ];
+    const colors = {
+      steady: 'var(--state-steady)', shifting: 'var(--state-shifting)',
+      overloaded: 'var(--state-overloaded)', drained: 'var(--state-drained)',
+    };
+    els.tsTrack.querySelectorAll('.ts-segment, .ts-reset-marker').forEach(el => el.remove());
+    segments.forEach((seg) => {
+      const div = document.createElement('div');
+      div.className = 'ts-segment';
+      div.style.left = seg.start + '%';
+      div.style.width = (seg.end - seg.start) + '%';
+      div.style.background = colors[seg.state];
+      div.style.opacity = seg.state === 'steady' ? 0.55 : 0.85;
+      els.tsTrack.appendChild(div);
+    });
+    [24, 56].forEach((pos) => {
+      const m = document.createElement('div');
+      m.className = 'ts-reset-marker';
+      m.style.left = pos + '%';
+      m.textContent = '↻';
+      els.tsTrack.appendChild(m);
+    });
+  }
+  renderTodayStrip();
+
+  // ════════════ CLOCK ════════════
+  function updateClock() {
+    const now = new Date();
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    let h = now.getHours();
+    const m = now.getMinutes().toString().padStart(2, '0');
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    els.metaTime.textContent = `${days[now.getDay()]} · ${h}:${m} ${ampm}`;
+  }
+  updateClock();
+  setInterval(updateClock, 30000);
+
+  // ════════════ DEMO MODE ════════════
+  let demoActive = false;
+  let demoTimeouts = [];
+  function clearDemo() { demoTimeouts.forEach(t => clearTimeout(t)); demoTimeouts = []; }
+
+  function runDemoArc() {
+    clearDemo();
+    renderState('steady');
+    els.sensorStatus.textContent = 'Demo mode · scripted arc playing';
+    demoTimeouts.push(setTimeout(() => renderState('shifting'), 4000));
+    demoTimeouts.push(setTimeout(() => renderState('overloaded'), 14000));
+    demoTimeouts.push(setTimeout(() => renderState('drained'), 26000));
+    demoTimeouts.push(setTimeout(() => {
+      renderState('steady');
+      els.sensorStatus.textContent = 'Demo replay in 4s · click DEMO MODE to stop';
+    }, 38000));
+    demoTimeouts.push(setTimeout(() => { if (demoActive) runDemoArc(); }, 44000));
+  }
+
+  els.demoToggle.addEventListener('click', () => {
+    demoActive = !demoActive;
+    if (demoActive) {
+      els.demoToggle.classList.add('active');
+      els.demoLabel.textContent = 'DEMO PLAYING';
+      runDemoArc();
+    } else {
+      els.demoToggle.classList.remove('active');
+      els.demoLabel.textContent = 'DEMO MODE';
+      clearDemo();
+      renderState('steady');
+      els.sensorStatus.textContent = 'Sensor reading · living room';
+    }
+  });
+
+  // ════════════ REFLECT — AGENT SWARM ════════════
+  // Client-side deterministic pattern matching. Real product would
+  // call the Anthropic API or a local model — this mocks the same
+  // shape of output for a reliable hackathon demo.
+
+  const PATTERNS = [
+    { key: 'urgency',         words: ['behind','catch up','running out','no time','late','rushing','hurry','asap'] },
+    { key: 'catastrophizing', words: ['everything','always','never','can\'t','disaster','nightmare','ruined','failed'] },
+    { key: 'rumination',      words: ['keep thinking','replaying','can\'t stop','what if','should have','wish i','over and over'] },
+    { key: 'exhaustion',      words: ['tired','exhausted','drained','spent','can\'t even','no energy','wiped'] },
+    { key: 'overwhelm',       words: ['so much','too much','head spinning','can\'t handle','don\'t know where','everything at once'] },
+    { key: 'minimization',    words: ['just','fine','it\'s fine','nothing','no big deal','whatever','i\'m okay'] },
+    { key: 'perfectionism',   words: ['should have','better','wrong','mistake','not good enough','failed'] },
+    { key: 'isolation',       words: ['alone','by myself','nobody','no one','just me'] },
+  ];
+
+  function scoreText(text) {
+    const t = text.toLowerCase();
+    const scores = {};
+    PATTERNS.forEach(p => {
+      const hits = p.words.filter(w => t.includes(w)).length;
+      scores[p.key] = Math.min(1, hits * 0.4);
+    });
+    return scores;
+  }
+
+  function pickState(scores) {
+    // Heuristics: combinations map to states
+    if (scores.exhaustion > 0 && scores.minimization > 0) return 'drained';
+    if (scores.urgency + scores.overwhelm + scores.catastrophizing >= 0.8) return 'overloaded';
+    if (scores.rumination > 0 || scores.perfectionism > 0) return 'shifting';
+    if (scores.urgency > 0 || scores.overwhelm > 0) return 'shifting';
+    if (Object.values(scores).every(s => s === 0)) return 'steady';
+    return 'shifting';
+  }
+
+  function topPatterns(scores) {
+    return Object.entries(scores)
+      .filter(([k, v]) => v > 0)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([k, v]) => ({ key: k, score: v, level: v >= 0.5 ? 'high' : 'med' }));
+  }
+
+  // Reframe library — keyed by state + dominant pattern
+  const REFRAMES = {
+    overloaded: [
+      'Your language suggests urgency and overload at the same time. Your system narrows focus when exhausted. Try reducing the next step instead of accelerating.',
+      'You\'re pointing at everything at once. The body responds to that the way it responds to a threat. Pick one thing you can complete in ten minutes.',
+      'The words "behind" and "catch up" are doing more work than you are right now. There\'s no race. There\'s the next breath.',
+    ],
+    shifting: [
+      'You\'re still in the window. The body is starting to ask for something — usually that\'s a slower exhale, not a faster pace.',
+      'Your mind is replaying. That\'s rumination, not problem-solving. Notice the loop, then step out of it for sixty seconds.',
+      'The phrase "should have" is showing up. That\'s the perfectionism reflex — it tightens the chest before it sharpens the mind.',
+    ],
+    drained: [
+      'You\'re saying "fine" while the rest of your body is saying "tired." The system needs activation now, not more rest. A two-minute walk is a stronger signal than another nap.',
+      'The words are minimizing what your nervous system is doing. Drained doesn\'t resolve through pushing. It resolves through gentle re-engagement.',
+    ],
+    steady: [
+      'Your language reads steady. There\'s no urgency, no looping. Whatever you\'re working with, you\'re working with it cleanly.',
+    ],
+  };
+
+  function pickReframe(state, patterns) {
+    const pool = REFRAMES[state] || REFRAMES.steady;
+    // If catastrophizing is dominant in overloaded, prefer reframe[0]
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  const swarm = $('swarm');
+  const rfcInput = $('rfcInput');
+  const rfcSubmit = $('rfcSubmit');
+  const samples = document.querySelectorAll('.rfc-sample');
+  const affirmation = $('affirmation');
+
+  samples.forEach(btn => {
+    btn.addEventListener('click', () => {
+      rfcInput.value = btn.dataset.sample;
+      rfcInput.focus();
+    });
+  });
+
+  function setAgentStatus(n, status, body) {
+    const card = $('agent' + n);
+    const statusEl = $('status' + n);
+    const bodyEl = $('body' + n);
+    card.className = 'agent-card ' + (status === 'thinking' ? 'thinking' : status === 'done' ? 'done' : '');
+    statusEl.textContent = ({thinking: 'Running…', done: 'Complete', idle: 'Idle'})[status];
+    if (body !== undefined) bodyEl.innerHTML = body;
+  }
+
+  function runSwarm(text) {
+    if (!text || !text.trim()) return;
+    rfcSubmit.disabled = true;
+    swarm.classList.add('visible');
+    affirmation.classList.remove('visible');
+
+    // Reset all 3 agents to thinking
+    [1, 2, 3].forEach(n => setAgentStatus(n, 'thinking',
+      '<span class="agent-loading"><span></span><span></span><span></span></span>'
+    ));
+
+    // Score text
+    const scores = scoreText(text);
+    const detected = topPatterns(scores);
+    const state = pickState(scores);
+
+    // Smooth-scroll to the swarm so judges see the action
+    setTimeout(() => swarm.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+
+    // Stagger the agent completions for visible parallelism
+    setTimeout(() => {
+      // Agent 1 — pattern scorer
+      let chips;
+      if (detected.length === 0) {
+        chips = '<span style="color: var(--ink-muted); font-style: italic;">No elevated patterns detected. Language reads steady.</span>';
+      } else {
+        chips = '<div class="pattern-chips">' +
+          detected.map(p => `<span class="pattern-chip ${p.level}">${p.key} · ${(p.score * 100).toFixed(0)}%</span>`).join('') +
+          '</div>';
+      }
+      setAgentStatus(1, 'done',
+        `<strong>Linguistic signals detected:</strong><br/>${chips}`
+      );
+    }, 1100);
+
+    setTimeout(() => {
+      // Agent 2 — state mapper
+      const stateLabels = {
+        steady: ['Steady', 'Language patterns + sensor baseline aligned. No transition.'],
+        shifting: ['Shifting', 'Linguistic urgency + sensor breath rate climbing. 8-min window open.'],
+        overloaded: ['Overloaded', 'High urgency + catastrophizing language confirms peak activation in body.'],
+        drained: ['Drained', 'Minimizing language + flat sensor signals confirm post-crash collapse.'],
+      };
+      const [stateName, reasoning] = stateLabels[state];
+      setAgentStatus(2, 'done',
+        `<strong>State:</strong> ${stateName}<br/>
+         <span style="color: var(--ink-muted); font-size: 12px; margin-top: 6px; display: block;">${reasoning}</span>`
+      );
+      // Update the main dashboard to match!
+      renderState(state);
+    }, 1900);
+
+    setTimeout(() => {
+      // Agent 3 — reverse affirmation
+      const reframe = pickReframe(state, detected);
+      setAgentStatus(3, 'done',
+        `<strong>Reframe ready.</strong><br/>
+         <span style="color: var(--ink-muted); font-size: 12px; margin-top: 4px; display: block;">Voice: observational, not corrective.</span>`
+      );
+
+      // Reveal full affirmation
+      $('affText').textContent = reframe;
+      const dominantNames = detected.length ? detected.map(p => p.key).join(' · ').toUpperCase() : 'NO ELEVATED PATTERNS';
+      $('affMeta').textContent = `STATE: ${state.toUpperCase()} · LANGUAGE PATTERNS: ${dominantNames}`;
+      affirmation.classList.add('visible');
+
+      rfcSubmit.disabled = false;
+    }, 2800);
+  }
+
+  rfcSubmit.addEventListener('click', () => runSwarm(rfcInput.value));
+  rfcInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      runSwarm(rfcInput.value);
+    }
+  });
+
+  // ════════════ BREATHING MODAL ════════════
+  const modal = $('breathModal');
+  const breathOrb = $('breathOrb');
+  const bmInstruction = $('bmInstruction');
+  const bmProgress = $('bmProgress');
+  const bmMeta = $('bmMeta');
+  const breathContent = $('breathContent');
+  const breathComplete = $('breathComplete');
+  let breathTimer = null;
+  let breathTimeouts = [];
+
+  function clearBreathTimers() {
+    if (breathTimer) clearTimeout(breathTimer);
+    breathTimeouts.forEach(t => clearTimeout(t));
+    breathTimeouts = [];
+  }
+  function openModal() {
+    modal.classList.add('visible');
+    breathContent.style.display = 'block';
+    breathComplete.classList.remove('visible');
+    bmProgress.querySelectorAll('.bm-prog-dot').forEach(d => d.classList.remove('complete', 'active'));
+    runBreathSequence();
+  }
+  function closeModalFn() {
+    modal.classList.remove('visible');
+    clearBreathTimers();
+    breathOrb.className = 'breath-orb';
+  }
+  function runBreathSequence() {
+    const rounds = 5;
+    let round = 0;
+    function step(text, orbClass, duration, after) {
+      bmInstruction.style.opacity = '0';
+      breathTimeouts.push(setTimeout(() => {
+        bmInstruction.innerHTML = text;
+        bmInstruction.style.opacity = '1';
+      }, 250));
+      breathOrb.className = 'breath-orb ' + orbClass;
+      breathTimer = setTimeout(after, duration);
+      breathTimeouts.push(breathTimer);
+    }
+    function doRound() {
+      if (round >= rounds) {
+        breathTimer = setTimeout(() => {
+          breathContent.style.display = 'none';
+          breathComplete.classList.add('visible');
+        }, 500);
+        breathTimeouts.push(breathTimer);
+        return;
+      }
+      const dots = bmProgress.querySelectorAll('.bm-prog-dot');
+      dots.forEach((d, i) => {
+        d.classList.remove('active');
+        if (i < round) d.classList.add('complete');
+        if (i === round) d.classList.add('active');
+      });
+      bmMeta.textContent = `Round ${round + 1} of ${rounds}`;
+      step('Breathe in <em>through your nose.</em>', 'inhale', 2000, () => {
+        step('A second small <em>top-up.</em>', 'hold', 1000, () => {
+          step('Long, slow exhale <em>through your mouth.</em>', 'exhale', 5000, () => {
+            round++;
+            doRound();
+          });
+        });
+      });
+    }
+    doRound();
+  }
+  els.beginReset.addEventListener('click', openModal);
+  $('closeModal').addEventListener('click', closeModalFn);
+  $('completeClose').addEventListener('click', closeModalFn);
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeModalFn(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModalFn(); });
+
+  // ════════════ INITIAL ════════════
+  renderState('steady');
+
+})();
+</script>
+
+</body>
+</html>
