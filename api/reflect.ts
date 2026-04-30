@@ -14,22 +14,22 @@
 export const config = { runtime: 'edge' };
 
 import Anthropic from '@anthropic-ai/sdk';
-import { AGENT_SPECS } from '../src/services/reflect/agentSpecs';
+import { AGENT_SPECS } from '../web-app/src/services/reflect/agentSpecs';
 import {
   validateStateMapperOutput,
   validateReframeWriterOutput,
-} from '../src/services/reflect/validate';
+} from '../web-app/src/services/reflect/validate';
 import {
   mockStateMapper,
   mockReframeWriter,
-} from '../src/services/reflect/fallback';
+} from '../web-app/src/services/reflect/fallback';
 import type {
   PatternScore,
   StateMapperOutput,
   ReframeWriterOutput,
   ReflectStreamEvent,
-} from '../src/types/reflection';
-import type { DashboardState } from '../src/types/display';
+} from '../web-app/src/types/reflection';
+import type { DashboardState } from '../web-app/src/types/display';
 
 // ---------------------------------------------------------------------------
 // Request body shape (Agent 1 output, no raw user text)
