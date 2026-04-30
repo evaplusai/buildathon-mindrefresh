@@ -1,29 +1,15 @@
 import Logo from '../shared/Logo';
 import { marketingCopy } from '../../data/marketing-copy';
+import { useWaitlist } from './waitlistContext';
 
-function WaitlistCta({ label, className }: { label: string; className: string }) {
-  const waitlistUrl = import.meta.env.VITE_WAITLIST_URL as string | undefined;
-  if (waitlistUrl) {
-    return (
-      <a
-        href={waitlistUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={className}
-      >
-        {label}
-      </a>
-    );
-  }
-  return (
-    <button disabled title="Coming soon" className={className}>
-      {label}
-    </button>
-  );
-}
-
+/**
+ * FinalCta — bottom-of-page conversion section. Per ADR-019 §C, the
+ * "Join the waitlist" button now opens the shared WaitlistModal
+ * (source: 'final-cta') for email capture.
+ */
 export default function FinalCta() {
   const { titleA, titleEm, titleB, body, ctaLabel, checks } = marketingCopy.finalCta;
+  const { open } = useWaitlist();
 
   return (
     <section id="cta" className="py-[120px] bg-marketing-green-50 text-center">
@@ -43,10 +29,13 @@ export default function FinalCta() {
           {body}
         </p>
 
-        <WaitlistCta
-          label={ctaLabel}
-          className="inline-block bg-marketing-green-800 text-marketing-cream px-9 py-[18px] rounded-full text-[16px] font-semibold border-none cursor-pointer shadow-[0_8px_20px_-8px_rgba(23,52,4,0.4)] hover:bg-marketing-green-900 hover:-translate-y-px transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
-        />
+        <button
+          type="button"
+          onClick={() => open('final-cta')}
+          className="inline-block bg-marketing-green-800 text-marketing-cream px-9 py-[18px] rounded-full text-[16px] font-semibold border-none cursor-pointer shadow-[0_8px_20px_-8px_rgba(23,52,4,0.4)] hover:bg-marketing-green-900 hover:-translate-y-px transition-all"
+        >
+          {ctaLabel}
+        </button>
 
         {/* Checks row */}
         <div className="flex justify-center gap-8 mt-8 flex-wrap text-[14px] text-marketing-inkSoft">

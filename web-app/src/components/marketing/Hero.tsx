@@ -1,21 +1,23 @@
 import { marketingCopy } from '../../data/marketing-copy';
+import { useWaitlist } from './waitlistContext';
 
-function WaitlistCta({ label, className }: { label: string; className: string }) {
-  const waitlistUrl = import.meta.env.VITE_WAITLIST_URL as string | undefined;
-  if (waitlistUrl) {
-    return (
-      <a
-        href={waitlistUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={className}
-      >
-        {label}
-      </a>
-    );
-  }
+/** ADR-019 §C — opens the shared WaitlistModal on click. */
+function WaitlistCta({
+  label,
+  className,
+  source,
+}: {
+  label: string;
+  className: string;
+  source: 'banner' | 'nav' | 'hero' | 'final-cta' | 'other';
+}) {
+  const { open } = useWaitlist();
   return (
-    <button disabled title="Coming soon" className={className}>
+    <button
+      type="button"
+      onClick={() => open(source)}
+      className={className}
+    >
       {label}
     </button>
   );
@@ -84,7 +86,8 @@ export default function Hero() {
             <div className="flex gap-[14px] items-center flex-wrap mt-8 mb-9">
               <WaitlistCta
                 label={primaryCta}
-                className="bg-marketing-green-800 text-marketing-cream px-7 py-4 rounded-full text-[15px] font-semibold border-none cursor-pointer shadow-[0_8px_20px_-8px_rgba(23,52,4,0.4)] hover:bg-marketing-green-900 hover:-translate-y-px hover:shadow-[0_12px_24px_-8px_rgba(23,52,4,0.5)] transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
+                source="hero"
+                className="bg-marketing-green-800 text-marketing-cream px-7 py-4 rounded-full text-[15px] font-semibold border-none cursor-pointer shadow-[0_8px_20px_-8px_rgba(23,52,4,0.4)] hover:bg-marketing-green-900 hover:-translate-y-px hover:shadow-[0_12px_24px_-8px_rgba(23,52,4,0.5)] transition-all"
               />
               <a
                 href="#how"

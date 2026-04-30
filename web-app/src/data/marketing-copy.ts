@@ -10,7 +10,8 @@
 
 export interface MarketingCopy {
   banner: { eyebrow: string; ctaLabel: string };
-  nav: { brand: string; links: { label: string; href: string }[]; ctaLabel: string; ctaHref: string };
+  /** ADR-019 §B: header CTA renamed to `loginLabel`; `ctaLabel`/`ctaHref` deprecated. */
+  nav: { brand: string; links: { label: string; href: string }[]; loginLabel: string };
   hero: { eyebrow: string; titleA: string; titleEm: string; subhead: string; primaryCta: string; secondaryCta: string; proofText: string; privacyPill: string };
   heroSteps: { eyebrow: string; steps: { num: string; title: string; body: string }[] };
   manifesto: { headline: string };
@@ -40,8 +41,7 @@ export const marketingCopy: MarketingCopy = {
       { label: "Why us", href: "#why" },
       { label: "Early access", href: "#cta" },
     ],
-    ctaLabel: "Join waitlist →",
-    ctaHref: "#cta",
+    loginLabel: "Login",
   },
 
   hero: {

@@ -15,6 +15,10 @@ import Testimonials from '../components/marketing/Testimonials';
 import IsntList from '../components/marketing/IsntList';
 import FinalCta from '../components/marketing/FinalCta';
 import MarketingFooter from '../components/marketing/MarketingFooter';
+import WaitlistModal from '../components/marketing/WaitlistModal';
+import { WaitlistProvider } from '../components/marketing/waitlistContext';
+import type { WaitlistSource } from '../services/waitlist';
+import { useCallback, useState } from 'react';
 
 /**
  * MarketingLanding — the public root route ("/").
@@ -26,6 +30,13 @@ import MarketingFooter from '../components/marketing/MarketingFooter';
 export default function MarketingLanding() {
   const navigate = useNavigate();
   const { search } = useLocation();
+  const [waitlistOpen, setWaitlistOpen] = useState(false);
+  const [waitlistSource, setWaitlistSource] = useState<WaitlistSource>('other');
+  const openWaitlist = useCallback((source: WaitlistSource) => {
+    setWaitlistSource(source);
+    setWaitlistOpen(true);
+  }, []);
+  const closeWaitlist = useCallback(() => setWaitlistOpen(false), []);
 
   useEffect(() => {
     const prev = document.title;
@@ -44,20 +55,27 @@ export default function MarketingLanding() {
 
   return (
     <MarketingLayout>
-      <Banner />
-      <MarketingNav />
-      <Hero />
-      <ManifestoBand />
-      <HeroMockup />
-      <StatsBand />
-      <ProblemSection />
-      <HowItWorks />
-      <LiveDemo />
-      <VsWearables />
-      <Testimonials />
-      <IsntList />
-      <FinalCta />
-      <MarketingFooter />
+      <WaitlistProvider open={openWaitlist}>
+        <Banner />
+        <MarketingNav />
+        <Hero />
+        <ManifestoBand />
+        <HeroMockup />
+        <StatsBand />
+        <ProblemSection />
+        <HowItWorks />
+        <LiveDemo />
+        <VsWearables />
+        <Testimonials />
+        <IsntList />
+        <FinalCta />
+        <MarketingFooter />
+        <WaitlistModal
+          isOpen={waitlistOpen}
+          source={waitlistSource}
+          onClose={closeWaitlist}
+        />
+      </WaitlistProvider>
     </MarketingLayout>
   );
 }
