@@ -95,10 +95,8 @@ export interface TodayStripData {
 }
 
 // ---------------------------------------------------------------------------
-// BreathProtocol — local alias for Sprint A.
-// TODO(Sprint B): move to types/reflection.ts once the Reflection bounded
-//   context ships its own type surface (DB-B1-T1). Import from there and
-//   re-export here for backward compat.
+// BreathProtocol — canonical definition lives in types/reflection.ts (Sprint B).
+// Re-exported here for backward compatibility with Sprint A consumers.
 // ---------------------------------------------------------------------------
 
-export type BreathProtocol = 'physiological_sigh' | 'box_breath' | 'four_seven_eight';
+export type { BreathProtocol } from './reflection';

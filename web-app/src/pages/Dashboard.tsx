@@ -49,6 +49,9 @@ import TodayStrip from '../components/dashboard/TodayStrip';
 import DemoModeToggle from '../components/dashboard/DemoModeToggle';
 import AvatarPill from '../components/dashboard/AvatarPill';
 import Logo from '../components/shared/Logo';
+import ReflectCard from '../components/dashboard/ReflectCard';
+import { logDisagreement } from '../services/display/disagreementLog';
+import type { RecentReflectRun } from '../services/display/resolveProtocol';
 
 const CORPUS = affirmationsCorpus as Affirmation[];
 const RECENT_WINDOW = 5;
@@ -113,6 +116,9 @@ export default function Dashboard() {
   const [demoActive, setDemoActive] = useState(demoUrl);
   const [demoState, setDemoState] = useState<DashboardState>('steady');
   const [breathModalOpen, setBreathModalOpen] = useState(false);
+
+  // Sprint B — most recent Reflect run protocol advisory (ADR-018 §A)
+  const [recentReflectProtocol, setRecentReflectProtocol] = useState<RecentReflectRun | undefined>(undefined);
 
   // Wall-clock tick at 1 Hz so dwell-derived state recomputes without
   // calling Date.now() inside useMemo (react-hooks/purity rule).
@@ -300,12 +306,12 @@ export default function Dashboard() {
     [active?.intervention.transitionId, store],
   );
 
-  // V2 — modal protocol resolution. Sprint A has no Reflect run yet, so
-  // recentRun stays undefined → state-fallback. nowTick keeps the
-  // resolution pure (no Date.now in render).
+  // V2 — modal protocol resolution. When a Reflect run completed within the
+  // last 5 minutes, Agent 3's advisory takes precedence (ADR-018 §A).
+  // nowTick drives the resolution pure (no Date.now in render).
   const modalProtocol: BreathProtocol = useMemo(() => {
-    return resolveProtocol({ recentRun: undefined, dashboardState, now: nowTick });
-  }, [dashboardState, nowTick]);
+    return resolveProtocol({ recentRun: recentReflectProtocol, dashboardState, now: nowTick });
+  }, [recentReflectProtocol, dashboardState, nowTick]);
 
   const handleBeginReset = useCallback(() => {
     setBreathModalOpen(true);
@@ -428,22 +434,22 @@ export default function Dashboard() {
           <SignalsPanel dashboardState={dashboardState} source={source} />
         </section>
 
-        {/* REFLECT CARD — Sprint B placeholder */}
-        <section className="bg-marketing-warmWhite border border-marketing-line rounded-[22px] p-9 mb-6 relative overflow-hidden">
-          <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-marketing-green-600 to-marketing-green-300" />
-          <div className="font-mono text-[11px] tracking-[2px] text-marketing-green-700 uppercase font-semibold mb-2">
-            Reflect · agent swarm
-          </div>
-          <h2 className="font-serif text-[28px] text-marketing-green-900 font-medium tracking-[-0.4px] mb-3">
-            Type how you feel.{' '}
-            <em className="italic text-marketing-green-600 font-medium">Watch your body show up.</em>
-          </h2>
-          <p className="text-[15px] text-marketing-inkSoft leading-[1.6] max-w-[700px]">
-            The Reflect agent swarm ships in Sprint B. Three agents read your language for
-            nervous-system signals, fuse with the sensor stream, and write a reflective reframe —
-            all in under five seconds. Coming next.
-          </p>
-        </section>
+        {/* REFLECT CARD — Sprint B (real swarm, replaces placeholder) */}
+        <ReflectCard
+          sensorState={sensorDashboardState}
+          breathBpm={latestBreath}
+          onAdvisory={(advised, sensor) => {
+            void logDisagreement({
+              ts: Date.now(),
+              advised,
+              sensor,
+              runId: globalThis.crypto.randomUUID(),
+            });
+          }}
+          onProtocolAdvisory={(protocol) =>
+            setRecentReflectProtocol({ ts: Date.now(), protocol })
+          }
+        />
 
         {/* V1 active intervention surface (sensor-triggered) */}
         {active?.morningPayload ? (
