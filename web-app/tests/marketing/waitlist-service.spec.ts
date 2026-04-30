@@ -1,38 +1,22 @@
 /**
  * waitlist-service.spec.ts — unit tests for services/waitlist.ts.
  *
- * Per ADR-019 §"Test Hooks". Mocks @supabase/supabase-js to verify the
- * insert call shape; exercises the soft-success path on unique
- * constraint violation (23505); verifies the env-vars-missing fallback.
+ * Per ADR-019 (amended for Google Sheets backend): mocks global fetch
+ * to verify the POST shape against VITE_WAITLIST_URL; exercises the
+ * env-vars-missing fallback; confirms the email validator.
  *
- * NOTE: email fixtures are assembled with string concatenation
- * (`'qa' + '@' + 'host.local'`) to avoid the Claude harness rewriting
- * literal email patterns to "[email protected]" placeholders during
- * file writes. The runtime values are real emails.
+ * Email fixtures use string concatenation to avoid the harness rewriting
+ * literal email patterns to "[email protected]" placeholders on file
+ * write.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Hoisted mocks so vi.mock can reference them.
-const { mockInsert, mockFrom, mockCreateClient } = vi.hoisted(() => {
-  const mockInsert = vi.fn();
-  const mockFrom = vi.fn(() => ({ insert: mockInsert }));
-  const mockCreateClient = vi.fn(() => ({ from: mockFrom }));
-  return { mockInsert, mockFrom, mockCreateClient };
-});
-
-vi.mock('@supabase/supabase-js', () => ({
-  createClient: mockCreateClient,
-}));
-
 import {
   submitWaitlistEmail,
   isPlausibleEmail,
-  _resetCacheForTests,
 } from '../../src/services/waitlist';
 
-// Email fixtures — concatenated at runtime so the harness's
-// email-obfuscation regex doesn't rewrite them on write.
 const AT = '@';
 const QA_EMAIL = 'qa' + AT + 'host.local';
 const QA_EMAIL_UPPER = '  QA' + AT + 'Host.Local  ';
@@ -41,22 +25,19 @@ const QA_SUBDOMAIN = 'user' + AT + 'mail.example.io';
 const TOO_SHORT = 'a' + AT + 'b';
 const NO_TLD = 'user' + AT + 'host';
 const NO_AT = 'foobar.com';
+const ENDPOINT = 'https://script.google.com/macros/s/AKfyc-test/exec';
+
+const mockFetch = vi.fn();
 
 beforeEach(() => {
-  _resetCacheForTests();
-  mockInsert.mockReset();
-  mockFrom.mockClear();
-  mockCreateClient.mockClear();
-  mockCreateClient.mockReturnValue({ from: mockFrom });
-  mockFrom.mockReturnValue({ insert: mockInsert });
-  (import.meta.env as Record<string, unknown>).VITE_SUPABASE_URL =
-    'https://test.supabase.co';
-  (import.meta.env as Record<string, unknown>).VITE_SUPABASE_ANON_KEY = 'anon-key';
+  mockFetch.mockReset();
+  vi.stubGlobal('fetch', mockFetch);
+  (import.meta.env as Record<string, unknown>).VITE_WAITLIST_URL = ENDPOINT;
 });
 
 afterEach(() => {
-  delete (import.meta.env as Record<string, unknown>).VITE_SUPABASE_URL;
-  delete (import.meta.env as Record<string, unknown>).VITE_SUPABASE_ANON_KEY;
+  delete (import.meta.env as Record<string, unknown>).VITE_WAITLIST_URL;
+  vi.unstubAllGlobals();
 });
 
 describe('isPlausibleEmail', () => {
@@ -71,66 +52,80 @@ describe('isPlausibleEmail', () => {
 });
 
 describe('submitWaitlistEmail', () => {
-  it('returns ok=true on a fresh insert', async () => {
-    mockInsert.mockResolvedValueOnce({ error: null });
+  it('returns ok=true on a successful Apps Script response', async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
     const result = await submitWaitlistEmail(QA_EMAIL, 'banner');
     expect(result.ok).toBe(true);
     expect(result.inserted).toBe(true);
-    expect(mockFrom).toHaveBeenCalledWith('waitlist_signups');
-    expect(mockInsert).toHaveBeenCalledWith([
-      { email: QA_EMAIL_LOWER, source: 'banner' },
-    ]);
+    expect(mockFetch).toHaveBeenCalledOnce();
+    const [url, opts] = mockFetch.mock.calls[0];
+    expect(url).toBe(ENDPOINT);
+    expect(opts.method).toBe('POST');
+    const body = JSON.parse(opts.body as string);
+    expect(body.email).toBe(QA_EMAIL_LOWER);
+    expect(body.source).toBe('banner');
   });
 
-  it('returns ok=true (inserted=false) on unique constraint conflict', async () => {
-    mockInsert.mockResolvedValueOnce({
-      error: {
-        code: '23505',
-        message: 'duplicate key value violates unique constraint',
-      },
-    });
+  it('treats a 200 with non-JSON body as success', async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response('<!DOCTYPE html><html>...</html>', { status: 200 }),
+    );
     const result = await submitWaitlistEmail(QA_EMAIL, 'hero');
     expect(result.ok).toBe(true);
-    expect(result.inserted).toBe(false);
   });
 
-  it('returns ok=false on other Supabase errors', async () => {
-    mockInsert.mockResolvedValueOnce({
-      error: { code: 'XXXXX', message: 'connection refused' },
-    });
+  it('returns ok=false when the server returns ok=false', async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: false, error: 'sheet locked' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
     const result = await submitWaitlistEmail(QA_EMAIL, 'final-cta');
     expect(result.ok).toBe(false);
-    expect(result.error).toContain('connection refused');
+    expect(result.error).toBe('sheet locked');
   });
 
-  it('returns ok=false when env vars are missing', async () => {
-    delete (import.meta.env as Record<string, unknown>).VITE_SUPABASE_URL;
-    delete (import.meta.env as Record<string, unknown>).VITE_SUPABASE_ANON_KEY;
-    _resetCacheForTests();
+  it('returns ok=false on non-2xx HTTP', async () => {
+    mockFetch.mockResolvedValueOnce(new Response('Bad Gateway', { status: 502 }));
+    const result = await submitWaitlistEmail(QA_EMAIL, 'banner');
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain('502');
+  });
+
+  it('returns ok=false when env var is missing', async () => {
+    delete (import.meta.env as Record<string, unknown>).VITE_WAITLIST_URL;
     const result = await submitWaitlistEmail(QA_EMAIL, 'banner');
     expect(result.ok).toBe(false);
     expect(result.error).toMatch(/not configured/i);
-    expect(mockCreateClient).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it('rejects empty email without calling Supabase', async () => {
+  it('rejects empty email without calling fetch', async () => {
     const result = await submitWaitlistEmail('   ', 'banner');
     expect(result.ok).toBe(false);
-    expect(mockInsert).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it('lowercases and trims the email before insert', async () => {
-    mockInsert.mockResolvedValueOnce({ error: null });
+  it('lowercases and trims the email before fetch', async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
     await submitWaitlistEmail(QA_EMAIL_UPPER, 'nav');
-    expect(mockInsert).toHaveBeenCalledWith([
-      { email: QA_EMAIL_LOWER, source: 'nav' },
-    ]);
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
+    expect(body.email).toBe(QA_EMAIL_LOWER);
   });
 
-  it('catches thrown errors from the Supabase client', async () => {
-    mockInsert.mockImplementationOnce(() => {
-      throw new Error('network down');
-    });
+  it('catches network errors thrown by fetch', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('network down'));
     const result = await submitWaitlistEmail(QA_EMAIL, 'banner');
     expect(result.ok).toBe(false);
     expect(result.error).toContain('network down');
