@@ -47,8 +47,8 @@ describe('marketing copy — anchor parity with design HTML (ADR-014)', () => {
     assertAnchor('Early access is open', 'banner');
   });
 
-  it('hero h1: contains "Catch the crash"', () => {
-    assertAnchor('Catch the crash', 'hero h1 A');
+  it('hero h1: contains "Catch the burnout"', () => {
+    assertAnchor('Catch the burnout', 'hero h1 A');
   });
 
   it('hero h1: contains "before" (the italic emphasis word)', () => {

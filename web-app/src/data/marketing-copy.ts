@@ -46,10 +46,10 @@ export const marketingCopy: MarketingCopy = {
 
   hero: {
     eyebrow: "Nervous-system intelligence for the home",
-    titleA: "Catch the crash ",
-    titleEm: "before it catches you.",
+    titleA: "Catch the burnout ",
+    titleEm: "before it catches you",
     subhead:
-      "Your body shifts 8 minutes before your mind notices. A sensor on your shelf reads the room — breath, heart rhythm, motion — and sends a 60-second reset before the crash lands.",
+      "Your body shifts 8 minutes before you feel the stress hit. A small sensor on your shelf reads the room — breath, heart rate, motion — and sends a 60-second reset before the burnout lands.",
     primaryCta: "Join the waitlist →",
     secondaryCta: "See how it works",
     proofText: "2,400+ on the waitlist · early units shipping fall",

@@ -40,7 +40,7 @@ export default function MarketingLanding() {
 
   useEffect(() => {
     const prev = document.title;
-    document.title = 'MindRefresh — Catch the crash before it catches you.';
+    document.title = 'MindRefresh — Catch the burnout before it catches you.';
     return () => {
       document.title = prev;
     };
