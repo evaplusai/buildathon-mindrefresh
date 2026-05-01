@@ -35,8 +35,6 @@ import type {
 import type { VitalsFrame } from '../types/vitals';
 import type { DashboardState, BreathProtocol } from '../types/display';
 
-import AffirmationCard from '../components/intervention/AffirmationCard';
-import BreathGuide from '../components/intervention/BreathGuide';
 import MorningCheckCard from '../components/dashboard/MorningCheckCard';
 import TrustedWitnessButton from '../components/dashboard/TrustedWitnessButton';
 
@@ -325,15 +323,6 @@ export default function Dashboard() {
     setWhatsAliveOpen(false);
   }, [whatsAliveText, active?.intervention.transitionId, store]);
 
-  const handleFeedback = useCallback(
-    (signal: 'helped' | 'neutral' | 'unhelpful') => {
-      const id = active?.intervention.transitionId;
-      if (!id) return;
-      workerRef.current?.postMessage({ kind: 'feedback', transitionId: id, signal });
-      void store.appendFeedback({ transitionId: id, signal }).catch(() => {});
-    },
-    [active?.intervention.transitionId, store],
-  );
 
   // V2 — modal protocol resolution. When a Reflect run completed within the
   // last 5 minutes, Agent 3's advisory takes precedence (ADR-018 §A).
@@ -366,13 +355,6 @@ export default function Dashboard() {
     },
     [active, modalProtocol, store],
   );
-
-  const breathPattern = useMemo(() => {
-    if (active) return active.intervention.breathPattern;
-    if (internalState === 'activated') return 'cyclic_sigh';
-    if (internalState === 'recovering') return 'extended_exhale';
-    return 'natural';
-  }, [active, internalState]);
 
   // Greeting strings for the current display state.
   const greeting = STATE_GREETING[dashboardState];
@@ -509,15 +491,6 @@ export default function Dashboard() {
           </section>
         )}
 
-        {/* Active sensor-triggered intervention (non-morning) — affirmation
-            + breath guide. Renders alongside MorningCheckCard when a real
-            transition fires. */}
-        {active && !active.morningPayload ? (
-          <section className="mb-6 grid grid-cols-1 md:grid-cols-[1fr_320px] gap-6">
-            <AffirmationCard affirmation={active.affirmation} onFeedback={handleFeedback} />
-            <BreathGuide pattern={breathPattern} breathBpm={latestBreath} />
-          </section>
-        ) : null}
 
         {/* PATTERN MIRROR */}
         <PatternMirror store={store} />

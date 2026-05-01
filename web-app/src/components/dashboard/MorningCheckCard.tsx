@@ -62,8 +62,8 @@ export function MorningCheckCard({
       <div className="grid gap-4 md:grid-cols-3">
         <Panel title="Yesterday">
           <p className="text-[15px] text-marketing-inkSoft leading-[1.55]">
-            You went into{' '}
-            <strong className="text-[#C99B4F] font-semibold">activated</strong>{' '}
+            You shifted into{' '}
+            <strong className="text-[#C99B4F] font-semibold">shifting</strong>{' '}
             <strong className="text-marketing-green-900 font-semibold">{yesterdayCount}</strong>{' '}
             {yesterdayCount === 1 ? 'time' : 'times'} yesterday — last one at{' '}
             <span className="text-marketing-green-900 font-medium">
@@ -80,7 +80,7 @@ export function MorningCheckCard({
             </strong>{' '}
             BPM{' '}
             <span className="text-marketing-inkMuted">
-              (your regulated baseline is{' '}
+              (your steady baseline is{' '}
               <span className="text-marketing-green-900 font-medium">
                 {Math.round(regulatedBaseline)}
               </span>
