@@ -102,24 +102,26 @@ export function TodayStrip({ store }: TodayStripProps) {
     ? `${steadyHours}:${String(steadyMins).padStart(2, '0')}`
     : `${steadyMins}m`;
 
+  const hasSegments = !loading && (data?.segments.length ?? 0) > 0;
+
   return (
     <section
       className="bg-marketing-warmWhite border border-marketing-line rounded-[22px] px-9 py-8"
       aria-label="Today's state timeline"
     >
       {/* Header */}
-      <div className="flex justify-between items-baseline mb-7">
+      <div className="flex justify-between items-baseline mb-7 gap-6 flex-wrap">
         <div className="font-serif text-[22px] text-marketing-green-900 font-medium tracking-[-0.3px]">
           Today, so far.{' '}
           <em className="italic text-marketing-green-600">How the day is unfolding.</em>
         </div>
 
         {/* Legend */}
-        <div className="flex gap-[18px] font-mono text-[10px] tracking-[1px] text-marketing-inkMuted uppercase">
+        <div className="flex gap-4 font-mono text-[10px] tracking-[1.2px] text-marketing-inkMuted uppercase">
           {(['steady', 'shifting', 'overloaded', 'drained'] as DashboardState[]).map((s) => (
             <div key={s} className="flex items-center gap-1.5">
               <span
-                className="w-2 h-2 rounded-full"
+                className="w-[8px] h-[8px] rounded-full"
                 style={{ background: STATE_COLORS[s] }}
                 aria-hidden="true"
               />
@@ -129,15 +131,51 @@ export function TodayStrip({ store }: TodayStripProps) {
         </div>
       </div>
 
+      {/* Top axis labels — anchored above the track so the NOW pin can sit
+          above the track without overlapping the heading. */}
+      <div className="relative h-5 mb-1.5">
+        {/* "NOW" pin floats above the track at the cursor position */}
+        {!loading && nowPct > 0 && nowPct < 100 && (
+          <div
+            className="absolute top-0 -translate-x-1/2 font-mono text-[9px] tracking-[1px] text-marketing-green-900 font-bold flex flex-col items-center"
+            style={{ left: `${nowPct}%` }}
+            aria-hidden="true"
+          >
+            <span>NOW</span>
+            <span className="block w-0 h-0 mt-0.5 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[6px] border-t-marketing-green-900" />
+          </div>
+        )}
+      </div>
+
       {/* Track */}
       <div
-        className="relative h-20 bg-marketing-cream2 rounded-xl overflow-hidden mb-3.5"
+        className="relative h-[88px] rounded-xl overflow-hidden mb-3 bg-gradient-to-b from-marketing-cream2 to-marketing-cream shadow-[inset_0_1px_2px_rgba(23,52,4,0.08)]"
         role="img"
         aria-label="Today's state timeline track"
       >
+        {/* Hour gridlines — even an empty track now reads as a real diagram */}
+        <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
+          {AXIS_LABELS.map((_label, i) => (
+            <span
+              key={i}
+              className="absolute top-0 bottom-0 w-px bg-marketing-line"
+              style={{
+                left: `${(i / (AXIS_LABELS.length - 1)) * 100}%`,
+                opacity: i === 0 || i === AXIS_LABELS.length - 1 ? 0 : 0.5,
+              }}
+            />
+          ))}
+        </div>
+
         {loading ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <span className="font-mono text-[11px] text-marketing-inkMuted animate-pulse">Loading…</span>
+          </div>
+        ) : !hasSegments ? (
+          <div className="absolute inset-0 flex items-center justify-center text-center px-4">
+            <span className="font-mono text-[11px] tracking-[1.2px] uppercase text-marketing-inkMuted">
+              Capturing your day · timeline appears as transitions arrive
+            </span>
           </div>
         ) : (
           <>
@@ -150,7 +188,7 @@ export function TodayStrip({ store }: TodayStripProps) {
                   left: `${tsToPercent(seg.start, dayStart)}%`,
                   width: `${tsToPercent(seg.end, dayStart) - tsToPercent(seg.start, dayStart)}%`,
                   background: STATE_COLORS[seg.state],
-                  opacity: seg.state === 'steady' ? 0.55 : 0.85,
+                  opacity: seg.state === 'steady' ? 0.6 : 0.92,
                 }}
                 aria-hidden="true"
               />
@@ -160,7 +198,7 @@ export function TodayStrip({ store }: TodayStripProps) {
             {data?.resetMarkers.map((ts, i) => (
               <div
                 key={i}
-                className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-[22px] h-[22px] bg-marketing-cream border-[1.5px] border-marketing-green-800 rounded-full flex items-center justify-center text-marketing-green-800 text-[12px] font-bold z-[3]"
+                className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-[22px] h-[22px] bg-marketing-cream border-[1.5px] border-marketing-green-800 rounded-full flex items-center justify-center text-marketing-green-800 text-[12px] font-bold z-[3] shadow-sm"
                 style={{ left: `${tsToPercent(ts, dayStart)}%` }}
                 aria-label="Reset performed"
                 title="Breathing reset"
@@ -168,32 +206,21 @@ export function TodayStrip({ store }: TodayStripProps) {
                 &#8635;
               </div>
             ))}
-
-            {/* NOW marker */}
-            {nowPct > 0 && nowPct < 100 && (
-              <div
-                className="absolute top-0 bottom-0 w-[2px] bg-marketing-green-900 z-[2]"
-                style={{ left: `${nowPct}%` }}
-                aria-hidden="true"
-              >
-                <div
-                  className="absolute -top-1 -left-1 w-2.5 h-2.5 bg-marketing-green-900 rounded-full"
-                  aria-hidden="true"
-                />
-                <div
-                  className="absolute -top-[22px] left-1/2 -translate-x-1/2 font-mono text-[9px] tracking-[1px] text-marketing-green-900 font-bold"
-                  aria-hidden="true"
-                >
-                  NOW
-                </div>
-              </div>
-            )}
           </>
+        )}
+
+        {/* NOW cursor — vertical line through the track */}
+        {!loading && nowPct > 0 && nowPct < 100 && (
+          <div
+            className="absolute top-0 bottom-0 w-[2px] bg-marketing-green-900 z-[2]"
+            style={{ left: `${nowPct}%` }}
+            aria-hidden="true"
+          />
         )}
       </div>
 
       {/* Axis */}
-      <div className="flex justify-between font-mono text-[10px] text-marketing-inkMuted tracking-[0.8px] px-1">
+      <div className="flex justify-between font-mono text-[10px] text-marketing-inkMuted tracking-[0.8px]">
         {AXIS_LABELS.map((label) => (
           <span key={label}>{label}</span>
         ))}
