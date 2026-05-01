@@ -8,8 +8,8 @@
 //                         the user's regulated baseline
 //   3. One affirmation  — the affirmation chosen for the trigger
 //
-// Single CTA: "I'd like to talk about it" — Dashboard wires this to a free
-// text box. For V1 the text is local-only (ADR-007).
+// V2 styling: full-width on the dashboard grid, cream/green marketing
+// palette matching StateDial / ReflectCard / ResetCard.
 
 import type { Affirmation } from '../../types/intervention';
 import type { MorningCheckPayload } from '../../types/state';
@@ -43,38 +43,54 @@ export function MorningCheckCard({
 
   return (
     <section
-      className={[
-        'max-w-3xl mx-auto',
-        'bg-surface-800/85 backdrop-blur-xl',
-        'rounded-2xl shadow-2xl border border-slate-700/60',
-        'p-8',
-      ].join(' ')}
+      className="relative overflow-hidden bg-marketing-warmWhite border border-marketing-line rounded-[22px] p-9"
       aria-label="Morning check comparison"
     >
+      {/* Left accent bar — matches ReflectCard's visual cue */}
+      <div
+        aria-hidden="true"
+        className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-marketing-green-600 to-marketing-green-300"
+      />
+
       <header className="mb-6 flex items-center gap-3">
-        <span className="text-xs uppercase tracking-widest text-accent-cyan">Morning check</span>
-        <span className="h-px flex-1 bg-slate-700" />
+        <span className="font-mono text-[11px] tracking-[2px] text-marketing-green-700 uppercase font-semibold">
+          Morning check
+        </span>
+        <span className="h-px flex-1 bg-marketing-lineSoft" />
       </header>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Panel title="Yesterday">
-          <p className="text-slate-200 leading-relaxed">
-            You went into <strong className="text-amber-300">activated</strong>{' '}
-            <strong className="text-slate-100">{yesterdayCount}</strong>{' '}
+          <p className="text-[15px] text-marketing-inkSoft leading-[1.55]">
+            You went into{' '}
+            <strong className="text-[#C99B4F] font-semibold">activated</strong>{' '}
+            <strong className="text-marketing-green-900 font-semibold">{yesterdayCount}</strong>{' '}
             {yesterdayCount === 1 ? 'time' : 'times'} yesterday — last one at{' '}
-            <span className="text-slate-100">{formatRelativeTime(lastEventTs)}</span>.
+            <span className="text-marketing-green-900 font-medium">
+              {formatRelativeTime(lastEventTs)}
+            </span>
+            .
           </p>
         </Panel>
         <Panel title="This morning">
-          <p className="text-slate-200 leading-relaxed">
+          <p className="text-[15px] text-marketing-inkSoft leading-[1.55]">
             Your breath is at{' '}
-            <strong className="text-slate-100">{Math.round(todayBaseline)}</strong>{' '}
-            BPM <span className="text-slate-400">(your regulated baseline is{' '}
-            <span className="text-slate-100">{Math.round(regulatedBaseline)}</span>)</span>.
+            <strong className="text-marketing-green-900 font-semibold">
+              {Math.round(todayBaseline)}
+            </strong>{' '}
+            BPM{' '}
+            <span className="text-marketing-inkMuted">
+              (your regulated baseline is{' '}
+              <span className="text-marketing-green-900 font-medium">
+                {Math.round(regulatedBaseline)}
+              </span>
+              )
+            </span>
+            .
           </p>
         </Panel>
         <Panel title="A note">
-          <p className="text-slate-100 italic leading-relaxed">
+          <p className="font-serif text-[16px] italic leading-[1.5] text-marketing-green-900">
             &ldquo;{affirmation.text}&rdquo;
           </p>
         </Panel>
@@ -85,10 +101,14 @@ export function MorningCheckCard({
           type="button"
           onClick={onTalk}
           className={[
-            'px-5 py-2.5 rounded-full',
-            'bg-accent-cyan/15 border border-accent-cyan/50 text-accent-cyan',
-            'text-sm tracking-wide',
-            'transition-colors duration-200 hover:bg-accent-cyan/25',
+            'inline-flex items-center gap-2.5',
+            'bg-marketing-green-800 text-marketing-cream',
+            'px-6 py-3 rounded-full',
+            'text-[14px] font-semibold',
+            'shadow-[0_8px_20px_-8px_rgba(23,52,4,0.4)]',
+            'transition-all duration-200',
+            'hover:bg-marketing-green-900 hover:-translate-y-px',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marketing-green-400',
           ].join(' ')}
         >
           I&rsquo;d like to talk about it
@@ -102,8 +122,8 @@ interface PanelProps { title: string; children: React.ReactNode }
 
 function Panel({ title, children }: PanelProps) {
   return (
-    <article className="rounded-xl border border-slate-700/70 bg-surface-900/50 p-5">
-      <h3 className="text-xs uppercase tracking-widest text-slate-400 mb-2">
+    <article className="rounded-[14px] border border-marketing-line bg-marketing-cream px-5 py-4">
+      <h3 className="font-mono text-[10px] uppercase tracking-[1.5px] text-marketing-inkMuted font-semibold mb-2">
         {title}
       </h3>
       {children}
