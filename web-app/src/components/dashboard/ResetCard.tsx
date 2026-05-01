@@ -17,6 +17,9 @@ export interface ResetCardProps {
   onBeginReset: () => void;
   /** Minutes until predicted peak — shown in the rc-tag for shifting state. */
   windowOpenMinutes?: number;
+  /** When true, render without panel chrome (bg, border, rounded, padding,
+   *  left accent) so this can sit inside a parent panel. */
+  nested?: boolean;
 }
 
 interface StateContent {
@@ -102,55 +105,55 @@ const BORDER_COLOR: Record<Exclude<DashboardState, 'steady'>, string> = {
   drained: '#6B7558',
 };
 
-export function ResetCard({ dashboardState, onBeginReset, windowOpenMinutes }: ResetCardProps) {
+export function ResetCard({ dashboardState, onBeginReset, windowOpenMinutes, nested = false }: ResetCardProps) {
   if (dashboardState === 'steady') return null;
 
   const content = buildContent(dashboardState, windowOpenMinutes);
 
   return (
     <div
-      className="relative overflow-hidden bg-marketing-warmWhite border border-marketing-line rounded-[22px] px-9 py-8 mb-6"
+      className={
+        nested
+          ? 'relative'
+          : 'relative overflow-hidden bg-marketing-warmWhite border border-marketing-line rounded-[22px] px-9 py-8 h-full'
+      }
       role="complementary"
       aria-label="Reset recommendation"
-      style={{
-        // Animated left accent border (3px)
-        // Using an inset pseudo-element via inline style + before isn't possible in TSX,
-        // so we use a real sibling element absolutely positioned.
-      }}
     >
-      {/* Left accent border */}
-      <div
-        aria-hidden="true"
-        className="absolute left-0 top-0 bottom-0 w-[3px] transition-colors duration-[600ms]"
-        style={{ background: BORDER_COLOR[dashboardState] }}
-      />
+      {/* Left accent border — only rendered when standalone (the parent
+          panel owns the visual frame in nested mode). */}
+      {!nested && (
+        <div
+          aria-hidden="true"
+          className="absolute left-0 top-0 bottom-0 w-[3px] transition-colors duration-[600ms]"
+          style={{ background: BORDER_COLOR[dashboardState] }}
+        />
+      )}
 
-      <div className="grid gap-8 items-center" style={{ gridTemplateColumns: '1fr auto' }}>
-        <div>
-          {/* Tag */}
-          <div
-            className={`inline-flex items-center gap-2 font-mono text-[10px] tracking-[1.5px] uppercase font-bold mb-3 ${content.accentClass}`}
-          >
-            {content.tag}
-          </div>
-
-          {/* Title */}
-          <h3 className="font-serif text-[26px] leading-[1.2] text-marketing-green-900 font-medium tracking-[-0.4px] mb-2 max-w-[580px]">
-            {content.title}
-          </h3>
-
-          {/* Protocol */}
-          <p className="text-[14px] text-marketing-inkSoft leading-[1.6] max-w-[580px]">
-            {content.protocol}
-          </p>
+      <div className="flex flex-col gap-5">
+        {/* Tag */}
+        <div
+          className={`inline-flex items-center gap-2 font-mono text-[10px] tracking-[1.5px] uppercase font-bold ${content.accentClass}`}
+        >
+          {content.tag}
         </div>
 
-        {/* CTA */}
+        {/* Title */}
+        <h3 className="font-serif text-[26px] leading-[1.2] text-marketing-green-900 font-medium tracking-[-0.4px]">
+          {content.title}
+        </h3>
+
+        {/* Protocol */}
+        <p className="text-[14px] text-marketing-inkSoft leading-[1.6]">
+          {content.protocol}
+        </p>
+
+        {/* CTA — stacked below the protocol text instead of beside it */}
         <button
           onClick={onBeginReset}
           id="begin-reset"
           className={[
-            'inline-flex items-center gap-2.5',
+            'self-start inline-flex items-center gap-2.5 mt-1',
             'bg-marketing-green-800 text-marketing-cream',
             'px-7 py-4 rounded-full',
             'text-[15px] font-semibold',

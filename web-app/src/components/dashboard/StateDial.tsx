@@ -54,11 +54,31 @@ const STATE_BG_GRADIENT: Record<DashboardState, string> = {
   drained:    'radial-gradient(circle at 70% 30%, rgba(107,117,88,0.12), transparent 60%)',
 };
 
-function windowPillText(state: DashboardState, minutes?: number): string | null {
-  if (minutes == null) return null;
-  if (state === 'shifting') return `Caught ${minutes} min before peak`;
-  if (state === 'overloaded') return 'Peak detected · reset queued';
-  return null;
+/**
+ * Pill content for every state — the pill is now always rendered so its
+ * appearance/disappearance can't reflow the card layout.
+ *  steady    → calm baseline note
+ *  shifting  → pre-peak window with minute count
+ *  overloaded → peak callout
+ *  drained   → post-peak recovery note
+ */
+function pillContent(state: DashboardState, minutes?: number): { icon: string; text: string } {
+  switch (state) {
+    case 'steady':
+      return { icon: '·', text: 'Holding baseline stable' };
+    case 'shifting':
+      return {
+        icon: '↗',
+        text:
+          minutes != null
+            ? `Caught ${minutes} min before peak`
+            : 'Caught before peak',
+      };
+    case 'overloaded':
+      return { icon: '▲', text: 'Peak detected · reset queued' };
+    case 'drained':
+      return { icon: '↘', text: 'After the peak · recovering' };
+  }
 }
 
 export function StateDial(props: StateDiagProps) {
@@ -66,7 +86,7 @@ export function StateDial(props: StateDiagProps) {
   // internalState is part of the public API surface (passed by Dashboard.tsx)
   // but the dial doesn't need to render it directly — kept for future use.
   void props.internalState;
-  const pillText = windowPillText(dashboardState, windowOpenMinutes);
+  const pill = pillContent(dashboardState, windowOpenMinutes);
 
   return (
     <div
@@ -88,51 +108,50 @@ export function StateDial(props: StateDiagProps) {
       />
 
       <div className="relative z-[1]">
-        {/* Top row: label + window pill */}
-        <div className="flex justify-between items-start mb-7">
-          <div className="font-mono text-[10px] tracking-[1.8px] text-marketing-inkMuted uppercase font-semibold">
-            Current state · live
-          </div>
-
-          {pillText && (
-            <div
-              className="inline-flex items-center gap-2 px-3.5 py-2 bg-marketing-green-900 text-marketing-cream rounded-full font-mono text-[11px] tracking-[1px] font-semibold animate-[slideIn_0.5s_ease]"
-              role="status"
-              aria-live="polite"
-            >
-              <span aria-hidden="true">↗</span>
-              <span>{pillText}</span>
-            </div>
-          )}
+        {/* Top row: just the section label — fixed position so the optional
+            window pill at the bottom doesn't shift the title text. */}
+        <div className="font-mono text-[10px] tracking-[1.8px] text-marketing-inkMuted uppercase font-semibold mb-7">
+          Current state · live
         </div>
 
-        {/* State name + description + ladder / mandala grid */}
-        <div className="grid gap-9 items-center" style={{ gridTemplateColumns: '1fr 200px' }}>
-          <div>
-            <div
-              className={[
-                'font-serif text-[56px] leading-none tracking-[-2px] font-medium mb-3.5',
-                'transition-colors duration-[600ms] ease-in-out',
-                STATE_NAME_CLASS[dashboardState],
-              ].join(' ')}
-              aria-live="polite"
-            >
-              {STATE_NAME[dashboardState]}
-            </div>
+        {/* State name + description (full inner width) */}
+        <div
+          className={[
+            'font-serif text-[48px] leading-none tracking-[-1.6px] font-medium mb-3.5',
+            'transition-colors duration-[600ms] ease-in-out',
+            STATE_NAME_CLASS[dashboardState],
+          ].join(' ')}
+          aria-live="polite"
+        >
+          {STATE_NAME[dashboardState]}
+        </div>
 
-            <p className="text-[16px] text-marketing-inkSoft leading-[1.55] max-w-[420px] mb-6">
-              {description}
-            </p>
+        <p className="text-[15px] text-marketing-inkSoft leading-[1.55] mb-5">
+          {description}
+        </p>
 
-            <StateLadder dashboardState={dashboardState} />
-          </div>
+        {/* Window pill — placed BEFORE the spiral, always present
+            (text varies per state) so its content can swap without
+            reflowing the layout. */}
+        <div
+          className="inline-flex items-center gap-2 px-3.5 py-2 mb-6 bg-marketing-green-900 text-marketing-cream rounded-full font-mono text-[11px] tracking-[1px] font-semibold"
+          role="status"
+          aria-live="polite"
+        >
+          <span aria-hidden="true">{pill.icon}</span>
+          <span>{pill.text}</span>
+        </div>
 
-          {/* Mandala SVG */}
+        {/* Mandala (left, sized to label column height) + StateLadder (right) */}
+        <div className="flex items-center gap-5">
           <div
-            className="w-[200px] h-[200px] flex items-center justify-center ml-auto"
+            className="w-[140px] h-[140px] flex-shrink-0 flex items-center justify-center"
             aria-hidden="true"
           >
             <Mandala dashboardState={dashboardState} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <StateLadder dashboardState={dashboardState} />
           </div>
         </div>
       </div>

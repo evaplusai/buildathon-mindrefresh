@@ -41,7 +41,6 @@ import MorningCheckCard from '../components/dashboard/MorningCheckCard';
 import TrustedWitnessButton from '../components/dashboard/TrustedWitnessButton';
 
 import StateDial from '../components/dashboard/StateDial';
-import SignalsPanel from '../components/dashboard/SignalsPanel';
 import ResetCard from '../components/dashboard/ResetCard';
 import BreathingModal from '../components/dashboard/BreathingModal';
 import PatternMirror from '../components/dashboard/PatternMirror';
@@ -423,33 +422,45 @@ export default function Dashboard() {
           </div>
         </header>
 
-        {/* MAIN GRID — StateDial + SignalsPanel */}
-        <section className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-6 mb-6">
+        {/* TWO-COLUMN GRID
+            Left col:  StateDial (single cell)
+            Right col: Reflect+Reset combined panel
+            Today, so far is rendered full-width below the grid. */}
+        <section className="grid grid-cols-1 lg:grid-cols-[3fr_7fr] gap-6 mb-6 items-stretch">
           <StateDial
             dashboardState={dashboardState}
             internalState={internalState}
             description={stateDesc}
             windowOpenMinutes={windowOpenMinutes}
           />
-          <SignalsPanel dashboardState={dashboardState} source={source} />
+          <ReflectCard
+            sensorState={sensorDashboardState}
+            breathBpm={latestBreath}
+            onAdvisory={(advised, sensor) => {
+              void logDisagreement({
+                ts: Date.now(),
+                advised,
+                sensor,
+                runId: globalThis.crypto.randomUUID(),
+              });
+            }}
+            onProtocolAdvisory={(protocol) =>
+              setRecentReflectProtocol({ ts: Date.now(), protocol })
+            }
+            footer={
+              <ResetCard
+                dashboardState={dashboardState}
+                onBeginReset={handleBeginReset}
+                nested
+              />
+            }
+          />
         </section>
 
-        {/* REFLECT CARD — Sprint B (real swarm, replaces placeholder) */}
-        <ReflectCard
-          sensorState={sensorDashboardState}
-          breathBpm={latestBreath}
-          onAdvisory={(advised, sensor) => {
-            void logDisagreement({
-              ts: Date.now(),
-              advised,
-              sensor,
-              runId: globalThis.crypto.randomUUID(),
-            });
-          }}
-          onProtocolAdvisory={(protocol) =>
-            setRecentReflectProtocol({ ts: Date.now(), protocol })
-          }
-        />
+        {/* Today, so far — full width below the grid */}
+        <section className="mb-6">
+          <TodayStrip store={store} />
+        </section>
 
         {/* V1 active intervention surface (sensor-triggered) */}
         {active?.morningPayload ? (
@@ -467,18 +478,8 @@ export default function Dashboard() {
           </section>
         ) : null}
 
-        {/* RESET CARD — focus restoration handled via document.activeElement
-            inside BreathingModal (no ref needed). */}
-        <ResetCard
-          dashboardState={dashboardState}
-          onBeginReset={handleBeginReset}
-        />
-
         {/* PATTERN MIRROR */}
         <PatternMirror store={store} />
-
-        {/* TODAY STRIP */}
-        <TodayStrip store={store} />
 
         {/* FOOTER + dev/manual buttons */}
         <footer className="py-8 text-xs text-marketing-inkMuted text-center max-w-2xl mx-auto flex flex-col gap-3">

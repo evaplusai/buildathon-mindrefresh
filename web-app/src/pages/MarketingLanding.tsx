@@ -5,6 +5,7 @@ import Banner from '../components/marketing/Banner';
 import MarketingNav from '../components/marketing/MarketingNav';
 import Hero from '../components/marketing/Hero';
 import ManifestoBand from '../components/marketing/ManifestoBand';
+import LearnPatterns from '../components/marketing/LearnPatterns';
 import HeroMockup from '../components/marketing/HeroMockup';
 import StatsBand from '../components/marketing/StatsBand';
 import ProblemSection from '../components/marketing/ProblemSection';
@@ -60,9 +61,10 @@ export default function MarketingLanding() {
         <MarketingNav />
         <Hero />
         <ManifestoBand />
-        <HeroMockup />
+        <LearnPatterns />
         <StatsBand />
         <ProblemSection />
+        <HeroMockup />
         <HowItWorks />
         <LiveDemo />
         <VsWearables />

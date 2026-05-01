@@ -41,6 +41,10 @@ export interface ReflectCardProps {
   breathBpm?: number;
   onAdvisory?: (advised: DashboardState, sensor: DashboardState) => void;
   onProtocolAdvisory?: (protocol: BreathProtocol) => void;
+  /** Optional content rendered inside the Reflect panel below the chat,
+   *  separated by a divider — used to embed the Reset CTA so it appears
+   *  as part of the same panel rather than a separate card. */
+  footer?: React.ReactNode;
 }
 
 // ---------------------------------------------------------------------------
@@ -61,7 +65,6 @@ const INITIAL_AGENT_STATE: AgentState = { status: 'idle' };
 const SAMPLES = [
   { label: '"I\'m so behind on everything"',     full: "I'm so behind on everything. I can't catch up." },
   { label: '"Everything is fine, just tired"',   full: 'Everything is fine. I\'m just tired, that\'s all.' },
-  { label: '"I keep replaying the meeting"',      full: "I keep replaying the meeting. I should have said something different." },
   { label: '"So much to do, head spinning"',      full: "I have so much to do and I don't know where to start. My head is spinning." },
 ] as const;
 
@@ -75,7 +78,7 @@ const reflectClient = createReflectClient();
 // Component
 // ---------------------------------------------------------------------------
 
-export function ReflectCard({ sensorState, breathBpm, onAdvisory, onProtocolAdvisory }: ReflectCardProps) {
+export function ReflectCard({ sensorState, breathBpm, onAdvisory, onProtocolAdvisory, footer }: ReflectCardProps) {
   const [inputText, setInputText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [swarmVisible, setSwarmVisible] = useState(false);
@@ -188,7 +191,7 @@ export function ReflectCard({ sensorState, breathBpm, onAdvisory, onProtocolAdvi
 
   return (
     <section
-      className="bg-marketing-warmWhite border border-marketing-line rounded-[22px] p-9 mb-6 relative overflow-hidden"
+      className="bg-marketing-warmWhite border border-marketing-line rounded-[22px] p-9 relative overflow-hidden h-full"
       aria-label="Reflect — agent swarm"
     >
       {/* Left accent bar (Sprint A placeholder carried over) */}
@@ -302,6 +305,14 @@ export function ReflectCard({ sensorState, breathBpm, onAdvisory, onProtocolAdvi
           )}
         </div>
       )}
+
+      {/* Optional footer slot — used to inline the Reset CTA inside the
+          same panel as the chat (Dashboard passes <ResetCard nested />). */}
+      {footer ? (
+        <div className="mt-8 pt-8 border-t border-marketing-lineSoft">
+          {footer}
+        </div>
+      ) : null}
     </section>
   );
 }
