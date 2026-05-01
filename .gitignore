@@ -223,3 +223,13 @@ __marimo__/
 **/.DS_Store
 nvs_config.csv
 .vercel
+
+# Node deps
+node_modules/
+**/node_modules/
+
+# Claude Code / claude-flow local agent state
+.claude/
+.claude-flow/
+**/.claude-flow/
+.mcp.json
