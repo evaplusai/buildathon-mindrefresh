@@ -5,6 +5,7 @@ import { Toaster } from 'sonner';
 import MarketingRoot from './pages/MarketingRoot';
 import AppEntry from './pages/AppEntry';
 import NotFound from './pages/NotFound';
+import ScrollToTop from './components/shared/ScrollToTop';
 
 // Lazy-load the Dashboard so the marketing route does NOT pull in the
 // sensing/state/intervention/memory worker stack on first paint.
@@ -17,6 +18,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <ScrollToTop />
         <Suspense fallback={null}>
           <Routes>
             <Route path="/" element={<MarketingRoot />} />
