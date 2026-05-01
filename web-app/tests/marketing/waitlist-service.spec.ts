@@ -52,13 +52,8 @@ describe('isPlausibleEmail', () => {
 });
 
 describe('submitWaitlistEmail', () => {
-  it('returns ok=true on a successful Apps Script response', async () => {
-    mockFetch.mockResolvedValueOnce(
-      new Response(JSON.stringify({ ok: true }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
+  it('returns ok=true once fetch resolves (no-cors fire-and-forget)', async () => {
+    mockFetch.mockResolvedValueOnce(new Response(null, { status: 0 }));
     const result = await submitWaitlistEmail(QA_EMAIL, 'banner');
     expect(result.ok).toBe(true);
     expect(result.inserted).toBe(true);
@@ -66,12 +61,13 @@ describe('submitWaitlistEmail', () => {
     const [url, opts] = mockFetch.mock.calls[0];
     expect(url).toBe(ENDPOINT);
     expect(opts.method).toBe('POST');
+    expect(opts.mode).toBe('no-cors');
     const body = JSON.parse(opts.body as string);
     expect(body.email).toBe(QA_EMAIL_LOWER);
     expect(body.source).toBe('banner');
   });
 
-  it('treats a 200 with non-JSON body as success', async () => {
+  it('treats opaque responses as success (no-cors hides status)', async () => {
     mockFetch.mockResolvedValueOnce(
       new Response('<!DOCTYPE html><html>...</html>', { status: 200 }),
     );
@@ -79,23 +75,10 @@ describe('submitWaitlistEmail', () => {
     expect(result.ok).toBe(true);
   });
 
-  it('returns ok=false when the server returns ok=false', async () => {
-    mockFetch.mockResolvedValueOnce(
-      new Response(JSON.stringify({ ok: false, error: 'sheet locked' }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
+  it('treats a 405 redirect-tail as success — Apps Script side-effect already ran', async () => {
+    mockFetch.mockResolvedValueOnce(new Response('Bad Gateway', { status: 405 }));
     const result = await submitWaitlistEmail(QA_EMAIL, 'final-cta');
-    expect(result.ok).toBe(false);
-    expect(result.error).toBe('sheet locked');
-  });
-
-  it('returns ok=false on non-2xx HTTP', async () => {
-    mockFetch.mockResolvedValueOnce(new Response('Bad Gateway', { status: 502 }));
-    const result = await submitWaitlistEmail(QA_EMAIL, 'banner');
-    expect(result.ok).toBe(false);
-    expect(result.error).toContain('502');
+    expect(result.ok).toBe(true);
   });
 
   it('returns ok=false when env var is missing', async () => {

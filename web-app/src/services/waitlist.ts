@@ -84,34 +84,17 @@ export async function submitWaitlistEmail(
       : '';
 
   try {
-    const response = await fetch(endpoint, {
+    // Apps Script web app POSTs return a 302 → googleusercontent.com/echo
+    // chain whose final hop returns 405 even though the doPost ran on the
+    // first hop. With mode: 'no-cors' the browser sends the request without
+    // preflight, the doPost executes, and the opaque response is ignored —
+    // fire-and-forget. Network failures still throw and are caught below.
+    await fetch(endpoint, {
       method: 'POST',
-      // Apps Script web apps don't honour preflight CORS; use text/plain
-      // to avoid the OPTIONS preflight (Apps Script reads the body via
-      // e.postData.contents regardless of content-type).
+      mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ email: trimmed, source, user_agent: userAgent }),
-      // Apps Script redirects from /macros/s/.../exec → script.googleusercontent.com
-      redirect: 'follow',
     });
-
-    if (!response.ok) {
-      return { ok: false, error: `Server returned ${response.status}` };
-    }
-
-    // Apps Script returns JSON via ContentService — parse defensively.
-    let payload: { ok?: boolean; error?: string } = {};
-    try {
-      payload = await response.json();
-    } catch {
-      // Some Apps Script deployments return text/html on redirect; treat
-      // a 200 OK as success even when the body isn't JSON.
-      return { ok: true, inserted: true };
-    }
-
-    if (payload.ok === false) {
-      return { ok: false, error: payload.error ?? 'Unknown server error.' };
-    }
     return { ok: true, inserted: true };
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Network error';
