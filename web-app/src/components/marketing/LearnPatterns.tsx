@@ -50,7 +50,8 @@ const PRIVACY_ITEMS: PrivacyItem[] = [
 export default function LearnPatterns() {
   return (
     <section
-      className="bg-marketing-cream py-16 border-b border-marketing-lineSoft"
+      id="how"
+      className="bg-marketing-cream py-16 border-b border-marketing-lineSoft scroll-mt-24"
       aria-label="The room notices first — sensor explainer"
     >
       <div className="max-w-[1200px] mx-auto px-8">

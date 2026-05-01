@@ -55,8 +55,8 @@ export default function HowItWorks() {
 
   return (
     <section
-      id="how"
-      className="py-[120px] bg-marketing-cream2 border-t border-marketing-lineSoft border-b"
+      id="setup"
+      className="py-[120px] bg-marketing-cream2 border-t border-marketing-lineSoft border-b scroll-mt-24"
     >
       <div className="max-w-[1400px] mx-auto px-8">
         <h2 className="font-serif text-[56px] leading-[1.05] tracking-[-1.4px] text-marketing-green-900 font-medium text-center max-w-[880px] mx-auto mb-6">
