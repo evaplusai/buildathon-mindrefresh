@@ -106,6 +106,13 @@ export default function Dashboard() {
   const [whatsAliveOpen, setWhatsAliveOpen] = useState(false);
   const [whatsAliveText, setWhatsAliveText] = useState('');
 
+  // Persistent morning-summary snapshot — always rendered on the dashboard
+  // (no longer gated on the morning_check trigger firing).
+  const [morningSnapshot, setMorningSnapshot] = useState<{
+    payload: MorningCheckPayload;
+    affirmation: Affirmation;
+  } | null>(null);
+
   // V2 — display-state derivation inputs
   const [latestSeverity, setLatestSeverity] = useState(0);
   const [lastTransitionTs, setLastTransitionTs] = useState<number | undefined>(undefined);
@@ -161,7 +168,23 @@ export default function Dashboard() {
   const refreshSnapshot = useCallback(async () => {
     const rows = await morningCheckQuery(MORNING_WINDOW_MS);
     workerRef.current?.postMessage({ kind: 'memory_snapshot', snap: { rows } });
-  }, [morningCheckQuery]);
+
+    // Recompute the always-visible morning summary on every snapshot refresh.
+    const yesterdayCount = rows.filter((r) => r.to_state === 'activated').length;
+    const lastEventTs = rows.length > 0 ? rows[0].ts : 0;
+    const todayBaseline = latestBreath ?? regulatedBaseline;
+    const payload: MorningCheckPayload = {
+      yesterdayCount,
+      lastEventTs,
+      todayBaseline,
+      regulatedBaseline,
+    };
+    const affirmation =
+      CORPUS.find((a) => a.state === 'regulated') ?? CORPUS[0];
+    if (affirmation) {
+      setMorningSnapshot({ payload, affirmation });
+    }
+  }, [morningCheckQuery, latestBreath, regulatedBaseline]);
 
   const refreshRecent = useCallback(async () => {
     const ids = await store.recentAffirmationIds();
@@ -243,6 +266,13 @@ export default function Dashboard() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source, cloudSync, demoActive]);
+
+  // Always-visible morning summary — refresh on mount and whenever the
+  // breath baseline updates. Runs in both live and demo modes so the
+  // MorningCheckCard panel always has data to render.
+  useEffect(() => {
+    void refreshSnapshot();
+  }, [refreshSnapshot]);
 
   // Demo arc runner.
   useEffect(() => {
@@ -462,16 +492,27 @@ export default function Dashboard() {
           <TodayStrip store={store} />
         </section>
 
-        {/* V1 active intervention surface (sensor-triggered) */}
-        {active?.morningPayload ? (
+        {/* MORNING CHECK — always visible. Uses the live morning_check
+            payload when one fires, otherwise falls back to the standalone
+            morningSnapshot derived from the last 24h of transitions. */}
+        {(active?.morningPayload || morningSnapshot) && (
           <section className="mb-6">
             <MorningCheckCard
-              payload={active.morningPayload}
-              affirmation={active.affirmation}
+              payload={active?.morningPayload ?? morningSnapshot!.payload}
+              affirmation={
+                active?.morningPayload
+                  ? active.affirmation
+                  : morningSnapshot!.affirmation
+              }
               onTalk={() => setWhatsAliveOpen(true)}
             />
           </section>
-        ) : active ? (
+        )}
+
+        {/* Active sensor-triggered intervention (non-morning) — affirmation
+            + breath guide. Renders alongside MorningCheckCard when a real
+            transition fires. */}
+        {active && !active.morningPayload ? (
           <section className="mb-6 grid grid-cols-1 md:grid-cols-[1fr_320px] gap-6">
             <AffirmationCard affirmation={active.affirmation} onFeedback={handleFeedback} />
             <BreathGuide pattern={breathPattern} breathBpm={latestBreath} />
