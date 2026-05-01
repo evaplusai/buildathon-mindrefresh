@@ -24,7 +24,29 @@ export type WaitlistSource =
   | 'nav'
   | 'hero'
   | 'final-cta'
+  | 'login-gate'
   | 'other';
+
+const STORED_EMAIL_KEY = 'mindrefresh.email';
+
+export function getStoredEmail(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const v = window.localStorage.getItem(STORED_EMAIL_KEY);
+    return v && v.trim() ? v.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveStoredEmail(email: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(STORED_EMAIL_KEY, email.trim().toLowerCase());
+  } catch {
+    /* localStorage disabled — silently skip */
+  }
+}
 
 export interface SubmitResult {
   ok: boolean;

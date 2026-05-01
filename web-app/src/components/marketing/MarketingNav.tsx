@@ -1,18 +1,30 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Logo from '../shared/Logo';
 import { marketingCopy } from '../../data/marketing-copy';
+import { getStoredEmail } from '../../services/waitlist';
+import { useWaitlist } from './waitlistContext';
 
 /**
  * MarketingNav — top navigation per ADR-013 + ADR-019.
  *
  * - Logo + brand text are wrapped in a <Link to="/"> so clicking the
  *   mark routes home (ADR-019 §A).
- * - The right-hand CTA is "Login" → /dashboard (ADR-019 §B). Replaces
- *   the previous "Join waitlist" CTA which is now per-section
- *   (banner / hero / final-cta) and opens an email-capture modal.
+ * - The right-hand "Login" CTA gates entry to /dashboard behind an
+ *   email capture (source: 'login-gate'). Once an email is stored in
+ *   localStorage, subsequent clicks skip the gate and route directly.
  */
 export default function MarketingNav() {
   const { brand, links, loginLabel } = marketingCopy.nav;
+  const navigate = useNavigate();
+  const { open } = useWaitlist();
+
+  const handleLogin = () => {
+    if (getStoredEmail()) {
+      navigate('/dashboard');
+    } else {
+      open('login-gate');
+    }
+  };
 
   return (
     <nav className="py-5 border-b border-marketing-lineSoft sticky top-0 bg-white/[0.94] backdrop-blur-[12px] z-50">
@@ -40,13 +52,14 @@ export default function MarketingNav() {
           ))}
         </div>
 
-        {/* Login CTA → /dashboard (ADR-019 §B) */}
-        <Link
-          to="/dashboard"
+        {/* Login CTA → email-gate → /dashboard */}
+        <button
+          type="button"
+          onClick={handleLogin}
           className="bg-marketing-green-800 text-marketing-cream px-[18px] py-[10px] rounded-full text-sm font-medium hover:bg-marketing-green-900 transition-colors cursor-pointer"
         >
           {loginLabel}
-        </Link>
+        </button>
       </div>
     </nav>
   );

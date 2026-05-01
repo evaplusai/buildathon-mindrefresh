@@ -8,6 +8,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   isPlausibleEmail,
+  saveStoredEmail,
   submitWaitlistEmail,
   type WaitlistSource,
 } from '../../services/waitlist';
@@ -16,13 +17,18 @@ export interface WaitlistModalProps {
   isOpen: boolean;
   source: WaitlistSource;
   onClose: () => void;
+  /** Called after a successful submit. If provided, replaces the autoclose
+   *  behaviour — caller decides what to do (typically navigate to /dashboard). */
+  onSuccess?: () => void;
 }
 
 type Phase = 'idle' | 'submitting' | 'success' | 'error';
 
 const SUCCESS_AUTOCLOSE_MS = 2000;
+const SUCCESS_REDIRECT_MS = 700;
 
-export default function WaitlistModal({ isOpen, source, onClose }: WaitlistModalProps) {
+export default function WaitlistModal({ isOpen, source, onClose, onSuccess }: WaitlistModalProps) {
+  const isLoginGate = source === 'login-gate';
   const titleId = useId();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -99,17 +105,20 @@ export default function WaitlistModal({ isOpen, source, onClose }: WaitlistModal
       setErrorMsg('');
       const result = await submitWaitlistEmail(email, source);
       if (result.ok) {
+        saveStoredEmail(email);
         setPhase('success');
+        const delay = onSuccess ? SUCCESS_REDIRECT_MS : SUCCESS_AUTOCLOSE_MS;
         const t = setTimeout(() => {
-          onClose();
-        }, SUCCESS_AUTOCLOSE_MS);
+          if (onSuccess) onSuccess();
+          else onClose();
+        }, delay);
         return () => clearTimeout(t);
       } else {
         setPhase('error');
         setErrorMsg(result.error ?? 'Something went wrong. Try again.');
       }
     },
-    [email, valid, phase, source, onClose],
+    [email, valid, phase, source, onClose, onSuccess],
   );
 
   if (!isOpen) return null;
@@ -132,7 +141,7 @@ export default function WaitlistModal({ isOpen, source, onClose }: WaitlistModal
       >
         <div className="flex justify-between items-start mb-2">
           <span className="font-mono text-[11px] tracking-[2px] uppercase text-marketing-green-700 font-semibold">
-            Early access
+            {isLoginGate ? 'Demo access' : 'Early access'}
           </span>
           <button
             ref={closeButtonRef}
@@ -149,12 +158,17 @@ export default function WaitlistModal({ isOpen, source, onClose }: WaitlistModal
           id={titleId}
           className="font-serif text-[26px] leading-[1.2] tracking-[-0.4px] text-marketing-green-900 font-medium mb-3"
         >
-          Reserve your <em className="italic text-marketing-green-600">spot</em>.
+          {isLoginGate ? (
+            <>Step <em className="italic text-marketing-green-600">inside</em>.</>
+          ) : (
+            <>Reserve your <em className="italic text-marketing-green-600">spot</em>.</>
+          )}
         </h2>
 
         <p className="text-[14px] text-marketing-inkSoft leading-[1.55] mb-5">
-          Drop your email and we'll reach out the moment your unit is ready
-          to ship.
+          {isLoginGate
+            ? "Drop your email — that's all we need to let you into the live dashboard."
+            : "Drop your email and we'll reach out the moment your unit is ready to ship."}
         </p>
 
         {phase === 'success' ? (
@@ -164,10 +178,19 @@ export default function WaitlistModal({ isOpen, source, onClose }: WaitlistModal
             className="bg-marketing-green-50 border border-marketing-green-200 rounded-[12px] p-4"
           >
             <p className="font-serif text-[16px] text-marketing-green-900 leading-[1.4]">
-              Got it.{' '}
-              <em className="italic text-marketing-green-600">
-                We'll be in touch.
-              </em>
+              {onSuccess ? (
+                <>
+                  Taking you{' '}
+                  <em className="italic text-marketing-green-600">there…</em>
+                </>
+              ) : (
+                <>
+                  Got it.{' '}
+                  <em className="italic text-marketing-green-600">
+                    We'll be in touch.
+                  </em>
+                </>
+              )}
             </p>
           </div>
         ) : (
@@ -208,7 +231,11 @@ export default function WaitlistModal({ isOpen, source, onClose }: WaitlistModal
                 disabled={!valid || phase === 'submitting'}
                 className="bg-marketing-green-800 text-marketing-cream px-5 py-2 rounded-full text-[13px] font-semibold hover:bg-marketing-green-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                {phase === 'submitting' ? 'Saving…' : 'Reserve my spot →'}
+                {phase === 'submitting'
+                  ? 'Saving…'
+                  : isLoginGate
+                  ? 'Enter the demo →'
+                  : 'Reserve my spot →'}
               </button>
             </div>
             <p className="text-[11px] text-marketing-inkMuted mt-1">

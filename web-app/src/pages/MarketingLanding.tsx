@@ -74,6 +74,10 @@ export default function MarketingLanding() {
           isOpen={waitlistOpen}
           source={waitlistSource}
           onClose={closeWaitlist}
+          onSuccess={() => {
+            setWaitlistOpen(false);
+            navigate('/dashboard');
+          }}
         />
       </WaitlistProvider>
     </MarketingLayout>

@@ -6,7 +6,9 @@
  * wiring rules from ADR-012 + ADR-019 (+ ADR-014 partial supersession).
  *
  * V2 wiring per ADR-019:
- *   - Top-right nav CTA is now "Login" → <a href="/dashboard">.
+ *   - Top-right nav CTA is "Login" → <button> that opens the email
+ *     capture gate (source: 'login-gate'). Once an email is stored in
+ *     localStorage, subsequent clicks navigate directly to /dashboard.
  *   - 3 waitlist CTAs (banner / hero / final-cta) are <button> elements
  *     that open the WaitlistModal on click (no longer external anchors,
  *     no longer disabled).
@@ -42,14 +44,20 @@ afterEach(() => {
 });
 
 describe('CTA targets — Login (top-right nav CTA, ADR-019 §B)', () => {
-  it('exactly one "Login" anchor exists with href="/dashboard"', async () => {
+  it('"Login" is a <button> that opens the email gate (no longer an <a>)', async () => {
     const container = await renderLanding();
+    const buttons = Array.from(container.querySelectorAll('button'));
+    const loginButtons = buttons.filter((b) =>
+      LOGIN_TEXT_RE.test((b.textContent ?? '').trim()),
+    );
+    expect(loginButtons.length, 'exactly one <button>Login</button>').toBe(1);
+    expect((loginButtons[0] as HTMLButtonElement).disabled).toBe(false);
+
     const anchors = Array.from(container.querySelectorAll('a'));
     const loginAnchors = anchors.filter((a) =>
       LOGIN_TEXT_RE.test((a.textContent ?? '').trim()),
     );
-    expect(loginAnchors.length, 'exactly one <a>Login</a>').toBe(1);
-    expect(loginAnchors[0].getAttribute('href')).toBe('/dashboard');
+    expect(loginAnchors.length, 'no <a>Login</a> remain after gate flip').toBe(0);
   });
 });
 
